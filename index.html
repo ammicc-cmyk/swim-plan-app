@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Генератор планов плавательных тренировок</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<header>
+  <h1>Генератор планов плавательных тренировок</h1>
+  <p>Rules engine поверх exercise_library.json — без AI в рантайме. Логика — PLAN_RULES.md / CATALOG_SCHEMA.md.</p>
+</header>
+<nav id="tab-buttons"></nav>
+<main id="tab-root"></main>
+
+<!-- Seed-данные: используются только при первом запуске (пустой localStorage).
+     Это копии exercise_library.json / training_log.json, встроенные inline, чтобы
+     страница работала и при открытии файла напрямую (file://), без сервера и fetch.
+     После первого запуска приложение работает с localStorage; при ручном изменении
+     файлов на диске — используйте Импорт JSON в соответствующей вкладке. -->
+<script type="application/json" id="seed-exercises">
+{
+  "$schema_version": "1.0",
+  "exercises": [
+    {
+      "code": "ne_warmup",
+      "name": "Разминка, вольный стиль",
+      "equipment": null,
+      "volume_unit_m": 50,
+      "tier": "base",
+      "status": "mastered",
+      "focus": "Разогрев, ровное дыхание",
+      "notes": "",
+      "last_attempt_date": null,
+      "always_include": true
+    },
+    {
+      "code": "eq_kick_crawl",
+      "name": "Ноги с доской, кроль",
+      "equipment": "board",
+      "volume_unit_m": 100,
+      "tier": "base",
+      "status": "mastered",
+      "focus": "Работа от бедра, стопы расслаблены",
+      "notes": "",
+      "last_attempt_date": null,
+      "always_include": true
+    },
+    {
+      "code": "eq_kick_breast",
+      "name": "Ноги с доской, брасс",
+      "equipment": "board",
+      "volume_unit_m": 100,
+      "tier": "base",
+      "status": "mastered",
+      "focus": "Разворот стоп наружу перед толчком, не «велосипед»",
+      "notes": "Было исключено из одной тренировки по организационной причине (инвентарь не на той стороне), не по технической. См. HANDOVER.",
+      "last_attempt_date": null,
+      "always_include": false
+    },
+    {
+      "code": "eq_singlearm",
+      "name": "Одной рукой с колобашкой, кроль",
+      "equipment": "pull_buoy",
+      "volume_unit_m": 100,
+      "tier": "medium",
+      "status": "in_progress",
+      "focus": "Высокий локоть, вращение корпуса; вторая рука вытянута вперёд неподвижно, дыхание в сторону работающей руки, смена руки через отрезок",
+      "notes": "Колобашка между бёдер, не в руке. Первая полноценная попытка выполнена на 100 м.",
+      "last_attempt_date": null,
+      "always_include": true
+    },
+    {
+      "code": "eq_sidekick",
+      "name": "Ноги на боку (side-kick)",
+      "equipment": "board_optional",
+      "volume_unit_m": 100,
+      "tier": "medium",
+      "status": "proposed",
+      "focus": "Вращение корпуса, голова на воде, стабильное положение",
+      "notes": "Предложено, не тестировано",
+      "last_attempt_date": null,
+      "always_include": true
+    },
+    {
+      "code": "ne_catchup",
+      "name": "Catch-up drill, кроль",
+      "equipment": null,
+      "volume_unit_m": 50,
+      "tier": "medium",
+      "status": "mastered",
+      "focus": "Рука ждёт у головы, пока вторая не завершит гребок — растягивает цикл, баланс",
+      "notes": "",
+      "last_attempt_date": null,
+      "always_include": true
+    },
+    {
+      "code": "ne_fist",
+      "name": "Кулак (fist drill), кроль",
+      "equipment": null,
+      "volume_unit_m": 50,
+      "tier": "medium",
+      "status": "mastered",
+      "focus": "Гребок предплечьем, ловля воды всей рукой, не «шлёпать» ладонью",
+      "notes": "",
+      "last_attempt_date": null,
+      "always_include": true
+    },
+    {
+      "code": "ne_switch33",
+      "name": "3 удара на груди / 3 на спине (переключение)",
+      "equipment": null,
+      "volume_unit_m": 50,
+      "tier": "medium",
+      "status": "mastered",
+      "focus": "Связка перехода между положениями тела",
+      "notes": "Хорошо пошло с первого раза",
+      "last_attempt_date": null,
+      "always_include": true
+    },
+    {
+      "code": "ne_bilateral",
+      "name": "Билатеральное дыхание, кроль",
+      "equipment": null,
+      "volume_unit_m": 50,
+      "tier": "medium",
+      "status": "proposed",
+      "focus": "Вдох через 3 гребка попеременно на обе стороны — симметрия гребка",
+      "notes": "",
+      "last_attempt_date": null,
+      "always_include": true
+    },
+    {
+      "code": "ne_zipper",
+      "name": "Zipper drill, кроль",
+      "equipment": null,
+      "volume_unit_m": 50,
+      "tier": "advanced",
+      "status": "deferred",
+      "focus": "Большой палец скользит вдоль бока тела при проносе — высокий локоть при проносе",
+      "notes": "Не пошло, слишком сложная координация. Не предлагать 1-2 тренировки подряд.",
+      "last_attempt_date": null,
+      "always_include": true
+    },
+    {
+      "code": "ne_scull",
+      "name": "Скаллинг у груди",
+      "equipment": null,
+      "volume_unit_m": 50,
+      "tier": "advanced",
+      "status": "deferred",
+      "focus": "Гребки-восьмёрки кистями, чувство опоры на воду",
+      "notes": "Не пошло, слишком сложная координация. Не предлагать 1-2 тренировки подряд.",
+      "last_attempt_date": null,
+      "always_include": true
+    },
+    {
+      "code": "ne_main_crawl",
+      "name": "Основной блок, кроль целиком",
+      "equipment": null,
+      "volume_unit_m": 50,
+      "tier": "base",
+      "status": "mastered",
+      "focus": "Свести все drill-элементы вместе — ритм дыхания каждые 3 гребка, высокий локоть",
+      "notes": "Постоянный пункт каждой тренировки; гибкий по объёму — используется для добора до целевого диапазона",
+      "last_attempt_date": null,
+      "always_include": true
+    },
+    {
+      "code": "ne_breast_full",
+      "name": "Брасс целиком",
+      "equipment": null,
+      "volume_unit_m": 50,
+      "tier": "base",
+      "status": "mastered",
+      "focus": "Пауза-скольжение после гребка",
+      "notes": "",
+      "last_attempt_date": null,
+      "always_include": true
+    },
+    {
+      "code": "ne_back_pause",
+      "name": "Спина, гребок с полной паузой у бедра",
+      "equipment": null,
+      "volume_unit_m": 50,
+      "tier": "base",
+      "status": "mastered",
+      "focus": "Разгрузка плеч, полная фаза проводки",
+      "notes": "",
+      "last_attempt_date": null,
+      "always_include": false
+    },
+    {
+      "code": "ne_cooldown",
+      "name": "Заминка, любой стиль",
+      "equipment": null,
+      "volume_unit_m": 50,
+      "tier": "base",
+      "status": "mastered",
+      "focus": "Снижение темпа, растянутый гребок",
+      "notes": "Всегда последний пункт",
+      "last_attempt_date": null,
+      "always_include": true
+    },
+    {
+      "code": "ne_glide_pause",
+      "name": "Кроль со скольжением/паузой",
+      "equipment": null,
+      "volume_unit_m": 50,
+      "tier": "medium",
+      "status": "proposed",
+      "focus": "Короткая пауза-скольжение на вытянутой руке после каждого гребка — растягивает гребок, чувство зацепа за воду",
+      "notes": "Источник: Additional Exercises/EXERCISES.md. Темп ниже обычного, не на скорость.",
+      "last_attempt_date": null,
+      "always_include": true
+    },
+    {
+      "code": "ne_fin_delay",
+      "name": "«Плавник» (задержка руки с высоким локтем)",
+      "equipment": null,
+      "volume_unit_m": 50,
+      "tier": "medium",
+      "status": "proposed",
+      "focus": "Задержка руки в верхней точке проноса (высокий локоть) на несколько ударов ногами перед вкладыванием — терпение в гребке",
+      "notes": "Источник: Additional Exercises/EXERCISES.md. В источнике стандартный объём 200-300м — при первой попытке использовать уменьшенный объём по правилу PLAN_RULES.md (1×50).",
+      "last_attempt_date": null,
+      "always_include": true
+    },
+    {
+      "code": "ne_spl_count",
+      "name": "Счёт гребков (SPL)",
+      "equipment": null,
+      "volume_unit_m": 50,
+      "tier": "medium",
+      "status": "proposed",
+      "focus": "Считать число гребков на отрезке вслух — осознанность длины гребка, не грести вхолостую частотой",
+      "notes": "Источник: Additional Exercises/EXERCISES.md.",
+      "last_attempt_date": null,
+      "always_include": true
+    }
+  ]
+}
+</script>
+
+<script type="application/json" id="seed-log">
+{
+  "$schema_version": "1.0",
+  "entries": [
+    {
+      "id": "session-N",
+      "order": 1,
+      "date": null,
+      "session_label": "Тренировка N (месяц занятий: ~1)",
+      "target_volume": { "min": 700, "max": 800 },
+      "executed_codes": [
+        "ne_warmup",
+        "eq_kick_crawl",
+        "eq_kick_breast",
+        "eq_singlearm",
+        "ne_catchup",
+        "ne_fist",
+        "ne_main_crawl",
+        "ne_breast_full",
+        "ne_back_pause",
+        "ne_cooldown"
+      ],
+      "removed": [],
+      "reserve": {
+        "included": true,
+        "exercise_code": "ne_main_crawl",
+        "volume_m": 100,
+        "done": true,
+        "promoted_to_mandatory": false
+      },
+      "new_exercises_introduced": ["eq_singlearm"],
+      "feedback_text": "Всё выполнено успешно, включая резерв."
+    },
+    {
+      "id": "session-N+1",
+      "order": 2,
+      "date": null,
+      "session_label": "Тренировка N+1",
+      "target_volume": { "min": 700, "max": 800 },
+      "executed_codes": [
+        "ne_warmup",
+        "eq_kick_crawl",
+        "ne_switch33",
+        "ne_catchup",
+        "ne_fist",
+        "ne_main_crawl",
+        "ne_breast_full",
+        "ne_back_pause",
+        "ne_cooldown"
+      ],
+      "removed": [
+        {
+          "code": "eq_kick_breast",
+          "reason_type": "organizational",
+          "note": "Инвентарь физически лежал не на той стороне бассейна; выяснено позже, не техническая причина. См. HANDOVER.md."
+        }
+      ],
+      "reserve": {
+        "included": true,
+        "exercise_code": "ne_main_crawl",
+        "volume_m": 100,
+        "done": true,
+        "promoted_to_mandatory": false
+      },
+      "new_exercises_introduced": ["ne_switch33"],
+      "feedback_text": "План прошёл хорошо. Single-arm с колобашкой в этой тренировке заменена на «3 удара на груди / 3 на спине» — зашло хорошо с первого раза."
+    }
+  ]
+}
+</script>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
