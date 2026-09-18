@@ -135,7 +135,7 @@
     },
     {
       "code": "ne_main_crawl",
-      "name": "Кроль целиком",
+      "name": "Кроль в полной координации",
       "equipment": null,
       "volume_unit_m": 50,
       "tier": "base",
