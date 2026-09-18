@@ -79,6 +79,7 @@ export function initLogTab(root) {
         date: todayStr(),
         session_label: `Тренировка ${log.length + 1}`,
         target_volume: { min: 700, max: 900 },
+        distance_m: null,
         executed_codes: [],
         removed: [],
         reserve: { included: true, exercise_code: 'ne_main_crawl', volume_m: 100, done: null, promoted_to_mandatory: false },
@@ -94,36 +95,50 @@ export function initLogTab(root) {
 
   // Обновляет только список записей — не трогает открытый редактор (иначе
   // подсказка про резерв и открытая форма редактирования стирались бы сразу
-  // после сохранения).
+  // после сохранения). Таблица: № тренировки (позиция в массиве, начиная с
+  // 1) — Дата — Упражнения кратко — Дистанция — Заметки пловца.
   function renderEntriesList() {
     const log = loadLog();
     const catalog = loadCatalog();
     const byCode = Object.fromEntries(catalog.map((e) => [e.code, e]));
 
-    const entriesHtml = [...log]
-      .reverse()
-      .map((entry, revIdx) => {
-        const idx = log.length - 1 - revIdx;
-        const removedSummary = (entry.removed || [])
-          .map((r) => `${byCode[r.code] ? byCode[r.code].name : r.code} (${r.reason_type === 'technical' ? 'техническая' : 'организационная'})`)
-          .join(', ');
+    const rowsHtml = log
+      .map((entry, idx) => {
+        const exerciseNames = (entry.executed_codes || []).map((c) => (byCode[c] ? byCode[c].name : c)).join(', ') || '—';
+        const distance = entry.distance_m
+          ? `${entry.distance_m} м`
+          : entry.target_volume
+            ? `${entry.target_volume.min}–${entry.target_volume.max} м (план)`
+            : '—';
         return `
-        <div class="log-entry">
-          <div class="log-entry-head">
-            <strong>${esc(entry.session_label || entry.id)}</strong>
-            <span>${entry.date ? esc(entry.date) : 'дата не указана'}</span>
-            <button class="edit-entry" data-idx="${idx}">Редактировать</button>
-          </div>
-          <div>Объём: ${entry.target_volume ? `${entry.target_volume.min}-${entry.target_volume.max} м` : '—'}</div>
-          <div>Выполнено: ${(entry.executed_codes || []).map((c) => (byCode[c] ? byCode[c].name : c)).join(', ') || '—'}</div>
-          ${removedSummary ? `<div>Убрано: ${esc(removedSummary)}</div>` : ''}
-          ${entry.feedback_text ? `<div class="feedback">Фидбэк: ${esc(entry.feedback_text)}</div>` : ''}
-        </div>`;
+        <tr>
+          <td class="log-col-num">${idx + 1}</td>
+          <td class="log-col-date">${entry.date ? esc(entry.date) : '—'}</td>
+          <td class="log-col-exercises">${esc(exerciseNames)}</td>
+          <td class="log-col-distance">${esc(distance)}</td>
+          <td class="log-col-notes">${esc(entry.feedback_text || '')}</td>
+          <td class="log-col-actions"><button class="edit-entry" data-idx="${idx}">Редактировать</button></td>
+        </tr>`;
       })
       .join('');
 
     const listEl = root.querySelector('#log-entries');
-    listEl.innerHTML = entriesHtml || '<p class="hint">Пока нет записей.</p>';
+    listEl.innerHTML = log.length
+      ? `
+      <table class="log-table">
+        <thead>
+          <tr>
+            <th>№</th>
+            <th>Дата</th>
+            <th>Упражнения (кратко)</th>
+            <th>Дистанция</th>
+            <th>Заметки пловца</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>`
+      : '<p class="hint">Пока нет записей.</p>';
     listEl.querySelectorAll('.edit-entry').forEach((btn) => {
       btn.addEventListener('click', () => openEditor(Number(btn.dataset.idx)));
     });
@@ -161,12 +176,13 @@ export function initLogTab(root) {
       <h2>Редактирование: ${esc(entry.session_label)}</h2>
       <div class="stack-form">
         <label>Дата <input type="date" id="e-date" value="${entry.date || ''}"></label>
-        <label>Объём от <input type="number" id="e-min" step="50" value="${entry.target_volume?.min || 700}"></label>
+        <label>Дистанция, м (фактическая) <input type="number" id="e-distance" step="50" value="${entry.distance_m ?? ''}" placeholder="например 800"></label>
+        <label>Плановый диапазон от <input type="number" id="e-min" step="50" value="${entry.target_volume?.min || 700}"></label>
         <label>до <input type="number" id="e-max" step="50" value="${entry.target_volume?.max || 900}"></label>
         <label><input type="checkbox" id="e-reserve-done" ${entry.reserve?.done ? 'checked' : ''}> Резерв выполнен полностью</label>
         <h3>Упражнения</h3>
         <div class="log-edit-list">${rows}</div>
-        <label>Фидбэк тренера <textarea id="e-feedback" rows="3">${esc(entry.feedback_text || '')}</textarea></label>
+        <label>Заметки пловца <textarea id="e-feedback" rows="3">${esc(entry.feedback_text || '')}</textarea></label>
         <div id="reserve-hint" class="hint"></div>
         <div class="toolbar">
           <button id="save-entry">Сохранить</button>
@@ -190,6 +206,8 @@ export function initLogTab(root) {
     editor.querySelector('#save-entry').addEventListener('click', () => {
       const updated = { ...entry };
       updated.date = editor.querySelector('#e-date').value || null;
+      const distanceVal = editor.querySelector('#e-distance').value;
+      updated.distance_m = distanceVal ? Number(distanceVal) : null;
       updated.target_volume = {
         min: Number(editor.querySelector('#e-min').value),
         max: Number(editor.querySelector('#e-max').value),
