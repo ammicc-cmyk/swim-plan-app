@@ -8,6 +8,28 @@
   --ok: #15803d;
   --warn: #b45309;
   --new: #7c3aed;
+  --badge-new-bg: #ede9fe;
+  --badge-reserve-bg: #dcfce7;
+  --combo-bg: #f8f7ff;
+  --segment-bg: #eef2f7;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14181f;
+    --panel: #1c212b;
+    --border: #333a46;
+    --text: #e7ebf0;
+    --muted: #9aa5b1;
+    --accent: #60a5fa;
+    --ok: #4ade80;
+    --warn: #fbbf24;
+    --new: #c4b5fd;
+    --badge-new-bg: #362a5c;
+    --badge-reserve-bg: #14351f;
+    --combo-bg: #262038;
+    --segment-bg: #232a36;
+  }
 }
 
 * { box-sizing: border-box; }
@@ -42,6 +64,7 @@ header p { margin: 0; color: var(--muted); font-size: 0.9rem; }
   border: 1px solid var(--border);
   border-bottom: none;
   background: var(--bg);
+  color: var(--text);
   padding: 8px 14px;
   border-radius: 8px 8px 0 0;
   cursor: pointer;
@@ -92,7 +115,8 @@ input, select, textarea {
   padding: 6px 8px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: #fff;
+  background: var(--panel);
+  color: var(--text);
 }
 
 button {
@@ -105,7 +129,7 @@ button {
   cursor: pointer;
 }
 button[type="button"], button#cancel-entry {
-  background: #fff;
+  background: var(--panel);
   color: var(--accent);
 }
 
@@ -121,8 +145,8 @@ button[type="button"], button#cancel-entry {
   border-radius: 999px;
   margin-left: 6px;
 }
-.badge-new { background: #ede9fe; color: var(--new); }
-.badge-reserve { background: #dcfce7; color: var(--ok); }
+.badge-new { background: var(--badge-new-bg); color: var(--new); }
+.badge-reserve { background: var(--badge-reserve-bg); color: var(--ok); }
 
 .exclude-panel { margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; }
 .exclude-panel summary { cursor: pointer; font-weight: 600; }
@@ -137,8 +161,8 @@ button[type="button"], button#cancel-entry {
   padding: 8px 10px;
   margin-bottom: 8px;
 }
-.plan-detail-row.block-equipment { border-left-color: #b45309; }
-.plan-detail-row.block-cooldown { border-left-color: #6b7785; }
+.plan-detail-row.block-equipment { border-left-color: var(--warn); }
+.plan-detail-row.block-cooldown { border-left-color: var(--muted); }
 .plan-detail-head { display: flex; gap: 8px; align-items: center; }
 .block-tag {
   font-size: 0.7rem;
@@ -153,7 +177,7 @@ button[type="button"], button#cancel-entry {
 
 .plan-detail-combo { border-left-color: var(--new); }
 .plan-detail-combo-halves { display: flex; gap: 10px; align-items: stretch; flex-wrap: wrap; margin-top: 6px; }
-.plan-detail-combo-half { flex: 1 1 200px; background: #f8f7ff; border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; }
+.plan-detail-combo-half { flex: 1 1 200px; background: var(--combo-bg); color: var(--text); border-radius: 6px; padding: 6px 8px; font-size: 0.85rem; }
 .plan-detail-combo-plus { align-self: center; color: var(--muted); font-weight: 600; }
 
 .plan-reserve {
@@ -165,7 +189,7 @@ button[type="button"], button#cancel-entry {
 .plan-reserve.reserve-mandatory { border-style: solid; border-color: var(--ok); }
 
 .segments-flow { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 0.8rem; }
-.segment { background: #eef2f7; padding: 2px 6px; border-radius: 4px; }
+.segment { background: var(--segment-bg); color: var(--text); padding: 2px 6px; border-radius: 4px; }
 .rest-marker { color: var(--muted); }
 
 table.catalog-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
