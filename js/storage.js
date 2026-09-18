@@ -34,12 +34,36 @@ export function defaultSettings() {
   };
 }
 
+// Переименования упражнений, которые должны применяться даже к каталогу,
+// уже сохранённому в localStorage браузера — иначе правка имени в
+// exercise_library.json/seed никогда не долетит до тех, кто уже открывал
+// приложение раньше (каталог из localStorage имеет приоритет над seed,
+// это сделано специально, чтобы не затирать статусы/прогресс при каждом
+// обновлении кода). Трогаем только поле name, остальное (status,
+// always_include, last_attempt_date и т.д.) не меняем.
+const NAME_MIGRATIONS = {
+  ne_warmup: 'Разминка, кроль',
+  ne_main_crawl: 'Кроль в полной координации',
+};
+
+function applyNameMigrations(exercises) {
+  let changed = false;
+  for (const ex of exercises) {
+    const canonicalName = NAME_MIGRATIONS[ex.code];
+    if (canonicalName && ex.name !== canonicalName) {
+      ex.name = canonicalName;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 export function loadCatalog() {
   const raw = localStorage.getItem(KEYS.catalog);
-  if (raw) return JSON.parse(raw);
-  const seed = readSeed('seed-exercises');
-  const exercises = seed ? seed.exercises : [];
-  saveCatalog(exercises);
+  const exercises = raw ? JSON.parse(raw) : (readSeed('seed-exercises') || { exercises: [] }).exercises;
+  if (applyNameMigrations(exercises) || !raw) {
+    saveCatalog(exercises);
+  }
   return exercises;
 }
 
