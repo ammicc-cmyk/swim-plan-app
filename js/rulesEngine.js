@@ -140,7 +140,7 @@ export function generatePlan({ catalog, log, targetMin, targetMax, settings, ove
   // Пара "новое/непривычное упражнение (уменьшенный объём 50м) + известное
   // упражнение-заполнитель (50м)" — один круг 100м у старта, сохраняет
   // правило "первая попытка уменьшённым объёмом", не нарушая кратность 100
-  // на уровне каждого пункта. Заполнитель — основной блок кроля (та же роль,
+  // на уровне каждого пункта. Заполнитель — "кроль целиком" (та же роль,
   // что "50м обычный кроль" в примере пользователя).
   function newItemCombo(ex) {
     const fillerCode = byCode['ne_main_crawl'] ? 'ne_main_crawl' : cooldown ? cooldown.code : ex.code;
@@ -239,7 +239,7 @@ export function generatePlan({ catalog, log, targetMin, targetMax, settings, ove
     drillsChosen += 1;
   }
 
-  // 5. Основной блок кроля — гибкий "доборный" пункт, всегда включён, всегда
+  // 5. "Кроль целиком" — гибкий "доборный" пункт, всегда включён, всегда
   // кратен 100 (шаг добора — 100м).
   const mainCrawl = byCode['ne_main_crawl'];
   const mainCrawlItem = { code: 'ne_main_crawl', volume_m: forceVolume['ne_main_crawl'] || 100, block: 'no_equipment', is_new: false, flexible: true };

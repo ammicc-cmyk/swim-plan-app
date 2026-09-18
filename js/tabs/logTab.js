@@ -47,6 +47,7 @@ export function initLogTab(root) {
           <button id="new-entry">Добавить запись вручную</button>
           <button id="export-log">Экспорт training_log.json</button>
           <label class="file-import">Импорт JSON <input type="file" id="import-log" accept="application/json"></label>
+          <button id="clear-log" type="button">Очистить журнал</button>
         </div>
         <div id="log-entries"></div>
       </section>
@@ -69,6 +70,13 @@ export function initLogTab(root) {
           renderEntriesList();
         })
         .catch((err) => alert('Ошибка импорта: ' + err.message));
+    });
+
+    root.querySelector('#clear-log').addEventListener('click', () => {
+      if (!confirm('Удалить все записи журнала в этом браузере? Каталог упражнений и его статусы не тронет, отменить нельзя.')) return;
+      saveLog([]);
+      root.querySelector('#entry-editor').style.display = 'none';
+      renderEntriesList();
     });
 
     root.querySelector('#new-entry').addEventListener('click', () => {

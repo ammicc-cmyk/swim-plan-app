@@ -103,7 +103,7 @@ export function renderPlan(plan, catalogByCode) {
     <div class="plan-reserve">
       <strong>Резерв (${esc(reserve.label)})</strong> —
       ${catalogByCode[reserve.exercise_code] ? esc(catalogByCode[reserve.exercise_code].name) : reserve.exercise_code},
-      ${reserve.volume_m}м, тот же фокус/стиль что основной блок — для сравнимости прогресса.
+      ${reserve.volume_m}м, тот же фокус/стиль, что кроль целиком — для сравнимости прогресса.
       <div class="hint">Выполняется "если успевает", в общий объём не входит.</div>
     </div>`;
 
