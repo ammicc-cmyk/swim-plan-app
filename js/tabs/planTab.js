@@ -105,6 +105,7 @@ export function initPlanTab(root) {
       date: dateStr && dateStr.trim() ? dateStr.trim() : null,
       session_label: `Тренировка ${log.length + 1}`,
       target_volume: { min: lastPlan.targetMin, max: lastPlan.targetMax },
+      distance_m: lastPlan.mandatoryVolume,
       executed_codes: lastPlan.items.flatMap(itemCodes),
       removed: [],
       reserve: {

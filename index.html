@@ -246,71 +246,7 @@
 <script type="application/json" id="seed-log">
 {
   "$schema_version": "1.0",
-  "entries": [
-    {
-      "id": "session-N",
-      "order": 1,
-      "date": null,
-      "session_label": "Тренировка N (месяц занятий: ~1)",
-      "target_volume": { "min": 700, "max": 800 },
-      "executed_codes": [
-        "ne_warmup",
-        "eq_kick_crawl",
-        "eq_kick_breast",
-        "eq_singlearm",
-        "ne_catchup",
-        "ne_fist",
-        "ne_main_crawl",
-        "ne_breast_full",
-        "ne_back_pause",
-        "ne_cooldown"
-      ],
-      "removed": [],
-      "reserve": {
-        "included": true,
-        "exercise_code": "ne_main_crawl",
-        "volume_m": 100,
-        "done": true,
-        "promoted_to_mandatory": false
-      },
-      "new_exercises_introduced": ["eq_singlearm"],
-      "feedback_text": "Всё выполнено успешно, включая резерв."
-    },
-    {
-      "id": "session-N+1",
-      "order": 2,
-      "date": null,
-      "session_label": "Тренировка N+1",
-      "target_volume": { "min": 700, "max": 800 },
-      "executed_codes": [
-        "ne_warmup",
-        "eq_kick_crawl",
-        "ne_switch33",
-        "ne_catchup",
-        "ne_fist",
-        "ne_main_crawl",
-        "ne_breast_full",
-        "ne_back_pause",
-        "ne_cooldown"
-      ],
-      "removed": [
-        {
-          "code": "eq_kick_breast",
-          "reason_type": "organizational",
-          "note": "Инвентарь физически лежал не на той стороне бассейна; выяснено позже, не техническая причина. См. HANDOVER.md."
-        }
-      ],
-      "reserve": {
-        "included": true,
-        "exercise_code": "ne_main_crawl",
-        "volume_m": 100,
-        "done": true,
-        "promoted_to_mandatory": false
-      },
-      "new_exercises_introduced": ["ne_switch33"],
-      "feedback_text": "План прошёл хорошо. Single-arm с колобашкой в этой тренировке заменена на «3 удара на груди / 3 на спине» — зашло хорошо с первого раза."
-    }
-  ]
+  "entries": []
 }
 </script>
 

@@ -199,16 +199,14 @@ table.catalog-table th { background: var(--bg); }
 .file-import { cursor: pointer; }
 .file-import input { display: none; }
 
-.log-entry {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px 12px;
-  margin-bottom: 10px;
-  font-size: 0.9rem;
-}
-.log-entry-head { display: flex; gap: 12px; align-items: center; margin-bottom: 4px; }
-.log-entry-head strong { flex: 1; }
-.feedback { color: var(--muted); font-style: italic; }
+table.log-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+table.log-table th, table.log-table td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; vertical-align: top; }
+table.log-table th { background: var(--bg); }
+.log-col-num { width: 2.5em; text-align: center; font-weight: 600; }
+.log-col-date { width: 7em; white-space: nowrap; }
+.log-col-distance { width: 8em; white-space: nowrap; }
+.log-col-notes { color: var(--muted); font-style: italic; max-width: 260px; }
+.log-col-actions { width: 1%; white-space: nowrap; }
 
 .log-edit-list { display: flex; flex-direction: column; gap: 4px; max-height: 420px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
 .log-edit-row { display: grid; grid-template-columns: 2fr auto auto 2fr; gap: 8px; align-items: center; font-size: 0.85rem; }
