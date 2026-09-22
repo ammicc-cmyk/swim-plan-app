@@ -107,6 +107,17 @@ export function generatePlan({ catalog, log, targetMin, targetMax, settings, ove
     return unitFor(ex);
   }
 
+  // requires (CATALOG_SCHEMA.md, добавлено 2026-09-22): упражнение из
+  // пошаговой прогрессии (например 5 шагов кроля на спине) не должно
+  // всплывать раньше своего предшественника. Пока предшественник не
+  // "в процессе"/"освоено" — генератор сам его не предложит; ручной
+  // forceInclude это правило обходит осознанно (тренер решил сам).
+  function prerequisiteMet(ex) {
+    if (!ex.requires) return true;
+    const prereq = byCode[ex.requires];
+    return !!prereq && (prereq.status === 'mastered' || prereq.status === 'in_progress');
+  }
+
   // Какое (если есть) новое/предложенное упражнение попадёт в этот план —
   // решается один раз, заранее, случайным выбором из ВСЕХ подходящих
   // кандидатов (инвентарь + drills вместе), а не "чей блок обрабатывается
@@ -116,7 +127,7 @@ export function generatePlan({ catalog, log, targetMin, targetMax, settings, ove
   const chosenNewCodes = new Set();
   if (maxNewItems > 0 && proposedCandidates.length) {
     const forced = proposedCandidates.filter((ex) => forceInclude.includes(ex.code));
-    const rest = shuffle(proposedCandidates.filter((ex) => !forceInclude.includes(ex.code)));
+    const rest = shuffle(proposedCandidates.filter((ex) => !forceInclude.includes(ex.code) && prerequisiteMet(ex)));
     let advancedUsed = false;
     for (const ex of [...forced, ...rest]) {
       if (chosenNewCodes.size >= maxNewItems) break;
