@@ -207,6 +207,7 @@ table.log-table th { background: var(--bg); }
 .log-col-distance { width: 8em; white-space: nowrap; }
 .log-col-notes { color: var(--muted); font-style: italic; max-width: 260px; }
 .log-col-actions { width: 1%; white-space: nowrap; }
+.log-col-actions .delete-entry { background: var(--panel); color: var(--warn); border-color: var(--warn); margin-left: 4px; padding: 7px 10px; }
 
 .log-edit-list { display: flex; flex-direction: column; gap: 4px; max-height: 420px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
 .log-edit-row { display: grid; grid-template-columns: 2fr auto auto 2fr; gap: 8px; align-items: center; font-size: 0.85rem; }

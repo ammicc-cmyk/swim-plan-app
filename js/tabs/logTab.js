@@ -47,7 +47,6 @@ export function initLogTab(root) {
           <button id="new-entry">Добавить запись вручную</button>
           <button id="export-log">Экспорт training_log.json</button>
           <label class="file-import">Импорт JSON <input type="file" id="import-log" accept="application/json"></label>
-          <button id="clear-log" type="button">Очистить журнал</button>
         </div>
         <div id="log-entries"></div>
       </section>
@@ -70,13 +69,6 @@ export function initLogTab(root) {
           renderEntriesList();
         })
         .catch((err) => alert('Ошибка импорта: ' + err.message));
-    });
-
-    root.querySelector('#clear-log').addEventListener('click', () => {
-      if (!confirm('Удалить все записи журнала в этом браузере? Каталог упражнений и его статусы не тронет, отменить нельзя.')) return;
-      saveLog([]);
-      root.querySelector('#entry-editor').style.display = 'none';
-      renderEntriesList();
     });
 
     root.querySelector('#new-entry').addEventListener('click', () => {
@@ -125,7 +117,10 @@ export function initLogTab(root) {
           <td class="log-col-exercises">${esc(exerciseNames)}</td>
           <td class="log-col-distance">${esc(distance)}</td>
           <td class="log-col-notes">${esc(entry.feedback_text || '')}</td>
-          <td class="log-col-actions"><button class="edit-entry" data-idx="${idx}">Редактировать</button></td>
+          <td class="log-col-actions">
+            <button class="edit-entry" data-idx="${idx}">Редактировать</button>
+            <button class="delete-entry" type="button" data-idx="${idx}" title="Удалить эту тренировку">✕</button>
+          </td>
         </tr>`;
       })
       .join('');
@@ -149,6 +144,22 @@ export function initLogTab(root) {
       : '<p class="hint">Пока нет записей.</p>';
     listEl.querySelectorAll('.edit-entry').forEach((btn) => {
       btn.addEventListener('click', () => openEditor(Number(btn.dataset.idx)));
+    });
+    // Удаление — только по одной записи за раз, с подтверждением. Массовой
+    // очистки всего журнала намеренно нет (запрещено пользователем 2026-09-22).
+    listEl.querySelectorAll('.delete-entry').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const idx = Number(btn.dataset.idx);
+        const current = loadLog();
+        const entry = current[idx];
+        if (!entry) return;
+        const label = entry.date ? `тренировку №${idx + 1} от ${entry.date}` : `тренировку №${idx + 1}`;
+        if (!confirm(`Удалить ${label}? Отменить нельзя.`)) return;
+        current.splice(idx, 1);
+        saveLog(current);
+        root.querySelector('#entry-editor').style.display = 'none';
+        renderEntriesList();
+      });
     });
   }
 

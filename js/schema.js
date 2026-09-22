@@ -56,6 +56,13 @@ export function validateExercise(ex, existingCodes, ignoreCode) {
     errors.push('focus: обязательно, непустое — без фокуса упражнение бесполезно в выводе плана.');
   }
 
+  if (ex.requires && !existingCodes.includes(ex.requires)) {
+    errors.push(`requires: код "${ex.requires}" не найден в каталоге.`);
+  }
+  if (ex.requires && ex.requires === ex.code) {
+    errors.push('requires: упражнение не может требовать само себя.');
+  }
+
   return errors;
 }
 
@@ -75,5 +82,6 @@ export function normalizeNewExercise(input) {
     // CATALOG_SCHEMA.md), но проставляем true по умолчанию, чтобы поле не
     // оставалось undefined для будущих статусов этой записи.
     always_include: input.always_include !== false,
+    requires: input.requires && input.requires.trim() !== '' ? input.requires.trim() : null,
   };
 }

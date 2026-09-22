@@ -58,10 +58,31 @@ function applyNameMigrations(exercises) {
   return changed;
 }
 
+// Каталог из localStorage имеет приоритет над seed (см. выше) — значит
+// упражнения, добавленные в exercise_library.json/seed ПОСЛЕ того, как
+// браузер уже сохранил себе каталог, никогда не появятся сами по себе.
+// При каждой загрузке доливаем в сохранённый каталог те коды из seed,
+// которых там ещё нет — остальные (уже существующие) записи не трогаем.
+function mergeNewSeedExercises(exercises) {
+  const seed = readSeed('seed-exercises');
+  if (!seed || !Array.isArray(seed.exercises)) return false;
+  const existingCodes = new Set(exercises.map((e) => e.code));
+  let changed = false;
+  for (const seedEx of seed.exercises) {
+    if (!existingCodes.has(seedEx.code)) {
+      exercises.push(seedEx);
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 export function loadCatalog() {
   const raw = localStorage.getItem(KEYS.catalog);
   const exercises = raw ? JSON.parse(raw) : (readSeed('seed-exercises') || { exercises: [] }).exercises;
-  if (applyNameMigrations(exercises) || !raw) {
+  const nameChanged = applyNameMigrations(exercises);
+  const mergedNew = raw ? mergeNewSeedExercises(exercises) : false;
+  if (nameChanged || mergedNew || !raw) {
     saveCatalog(exercises);
   }
   return exercises;
@@ -140,11 +161,16 @@ export function exportExerciseLibraryMd() {
   const withEquip = exercises.filter((e) => e.equipment);
   const noEquip = exercises.filter((e) => !e.equipment);
 
+  const statusCell = (e) => {
+    const label = STATUS_LABEL_MD[e.status] || e.status;
+    return e.requires ? `${label} (требует: ${e.requires})` : label;
+  };
+
   const equipRows = withEquip
-    .map((e) => `| ${e.code} | ${e.name} | ${e.equipment} | ${e.focus} | ${STATUS_LABEL_MD[e.status] || e.status} |`)
+    .map((e) => `| ${e.code} | ${e.name} | ${e.equipment} | ${e.focus} | ${statusCell(e)} |`)
     .join('\n');
   const noEquipRows = noEquip
-    .map((e) => `| ${e.code} | ${e.name} | ${e.focus} | ${STATUS_LABEL_MD[e.status] || e.status} |`)
+    .map((e) => `| ${e.code} | ${e.name} | ${e.focus} | ${statusCell(e)} |`)
     .join('\n');
 
   const md = `# Каталог упражнений
@@ -164,8 +190,8 @@ ${equipRows}
 |---|---|---|---|
 ${noEquipRows}
 
-Правила добавления упражнения и переходов статуса — см. CATALOG_SCHEMA.md
-и PLAN_RULES.md.
+Правила добавления упражнения, переходов статуса и поле \`requires\`
+(прогрессии с предпосылками) — см. CATALOG_SCHEMA.md и PLAN_RULES.md.
 `;
 
   downloadText('EXERCISE_LIBRARY.md', md, 'text/markdown');

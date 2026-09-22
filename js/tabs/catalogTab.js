@@ -1,6 +1,12 @@
 import { loadCatalog, saveCatalog, loadLog, loadSettings, exportCatalog, exportExerciseLibraryMd, importCatalogFile } from '../storage.js';
 import { validateExercise, normalizeNewExercise, TIERS, STATUSES, KNOWN_EQUIPMENT, expectedVolumeFor } from '../schema.js';
 
+function prerequisiteMet(ex, byCode) {
+  if (!ex.requires) return true;
+  const prereq = byCode[ex.requires];
+  return !!prereq && (prereq.status === 'mastered' || prereq.status === 'in_progress');
+}
+
 const STATUS_LABEL = { mastered: 'освоено', in_progress: 'в процессе', proposed: 'предложено', deferred: 'отложено' };
 const EQUIPMENT_LABEL = { board: 'доска', pull_buoy: 'колобашка', board_optional: 'доска (опционально)' };
 
@@ -23,6 +29,7 @@ export function initCatalogTab(root) {
     const log = loadLog();
     const settings = loadSettings();
     const cooldownSessions = settings.deferred_cooldown_sessions || 2;
+    const byCode = Object.fromEntries(catalog.map((e) => [e.code, e]));
 
     const rows = catalog
       .map((ex) => {
@@ -36,6 +43,12 @@ export function initCatalogTab(root) {
           } else {
             cooldownNote = `<div class="hint">Прошло ${sessionsSince} трен. из ${cooldownSessions} — пока не предлагать.</div>`;
           }
+        }
+        let requiresNote = '';
+        if (ex.requires) {
+          const prereq = byCode[ex.requires];
+          const met = prerequisiteMet(ex, byCode);
+          requiresNote = `<div class="hint ${met ? 'ok' : ''}">Требует: ${esc(prereq ? prereq.name : ex.requires)}${met ? ' — освоено/в процессе' : ' — 🔒 ещё не начато, генератор сам не предложит'}</div>`;
         }
         return `
         <tr data-code="${esc(ex.code)}">
@@ -56,7 +69,7 @@ export function initCatalogTab(root) {
               через трен.
             </label>
           </td>
-          <td class="focus-cell">${esc(ex.focus)}</td>
+          <td class="focus-cell">${esc(ex.focus)}${requiresNote}</td>
           <td class="notes-cell">${esc(ex.notes || '')}</td>
         </tr>`;
       })
@@ -94,6 +107,13 @@ export function initCatalogTab(root) {
           </label>
           <label>Фокус (обязательно) <input type="text" id="f-focus" required></label>
           <label>Заметки <input type="text" id="f-notes"></label>
+          <label>Требует освоения (опционально)
+            <select id="f-requires">
+              <option value="">— нет —</option>
+              ${catalog.map((ex) => `<option value="${esc(ex.code)}">${esc(ex.name)}</option>`).join('')}
+            </select>
+          </label>
+          <div class="hint">Пока указанное упражнение не станет "в процессе"/"освоено", генератор сам это новое упражнение не предложит (только вручную, через чек-лист на вкладке генератора).</div>
           <label><input type="checkbox" id="f-rotate"> Чередовать через тренировку (не включать каждый раз, когда освоено)</label>
           <div class="hint">Статус нового упражнения всегда "предложено" (CATALOG_SCHEMA.md). Чередование начнёт применяться, когда статус станет "освоено"/"в процессе" — пока предложено, действует своё правило (не больше одного нового упражнения за тренировку).</div>
           <div id="add-errors" class="warn"></div>
@@ -160,6 +180,7 @@ export function initCatalogTab(root) {
         focus: root.querySelector('#f-focus').value,
         notes: root.querySelector('#f-notes').value,
         always_include: !root.querySelector('#f-rotate').checked,
+        requires: root.querySelector('#f-requires').value,
       };
       const candidate = normalizeNewExercise(input);
       const catalog = loadCatalog();
