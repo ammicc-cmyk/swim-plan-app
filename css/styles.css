@@ -393,3 +393,8 @@ table.log-table th { background: var(--accent-soft); }
 .plan-tempo, .plan-rest { font-size: .88rem; margin-top: 3px; }
 .plan-rest { color: var(--muted); }
 .plan-detail-focus b, .plan-tempo b, .plan-rest b { color: var(--text); font-weight: 600; }
+.plan-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 24px; height: 24px; border-radius: 999px;
+  background: var(--accent); color: #fff; font-weight: 700; font-size: .8rem; flex: none;
+}

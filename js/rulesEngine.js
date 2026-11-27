@@ -34,6 +34,116 @@ function byStatusRank(a, b) {
   return STATUS_RANK[a.status] - STATUS_RANK[b.status];
 }
 
+// ---------- Стили (добавлено 2026-11-27) ----------
+// Стиль упражнения: поле style из каталога, иначе по коду/названию.
+// 'mixed' — упражнения без привязки к одному стилю (переключение, скаллинг).
+export const STYLES = ['crawl', 'breast', 'back'];
+export const STYLE_LABEL = { crawl: 'Кроль', breast: 'Брасс', back: 'Спина' };
+const STYLE_BY_CODE = {
+  ne_switch33: 'mixed',
+  ne_scull: 'mixed',
+  ne_cooldown: 'mixed',
+};
+export function styleOf(ex) {
+  if (!ex) return 'crawl';
+  if (ex.style) return ex.style;
+  if (STYLE_BY_CODE[ex.code]) return STYLE_BY_CODE[ex.code];
+  const n = (ex.name || '').toLowerCase();
+  if (n.includes('брасс')) return 'breast';
+  if (n.includes('спин')) return 'back';
+  return 'crawl';
+}
+// Упражнение «стиль целиком» — им плывётся основная серия и стилевой сет.
+export const FULL_STYLE_CODE = { crawl: 'ne_main_crawl', breast: 'ne_breast_full', back: 'ne_back_pause' };
+const STRUCTURAL = new Set(['ne_warmup', 'ne_cooldown', 'ne_main_crawl']);
+
+// ---------- Основная серия ----------
+// Самый длинный отрезок без остановки: по уровню, но не меньше, чем
+// подразумевает сам объём тренировки (3000 м — это не начинающий по 50 м).
+function maxRepeatFor(level, aim) {
+  const byLevel = { beginner: 50, intermediate: 200, advanced: 400 }[level] || 50;
+  const byVolume = aim >= 2000 ? 400 : aim >= 1200 ? 200 : 50;
+  return Math.max(byLevel, byVolume);
+}
+
+const LADDERS = [
+  [100, 200, 100],
+  [200, 400, 200],
+  [100, 200, 300, 200, 100],
+  [100, 200, 300, 400],
+  [400, 300, 200, 100],
+  [100, 200, 300, 400, 300, 200, 100],
+  [200, 400, 600, 400, 200],
+];
+
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function repeatsLabel(n, d) {
+  return n === 1 ? `${d}м` : `${n}×${d}м`;
+}
+
+/**
+ * Структура основной серии объёмом vol (кратен 100).
+ * @returns {{ parts:number[], label:string, kind:'repeats'|'ladder'|'mixed' }}
+ */
+export function buildMainSet(vol, maxRep) {
+  if (maxRep <= 50 || vol <= 100) {
+    const n = Math.round(vol / 50);
+    return { parts: Array(n).fill(50), label: repeatsLabel(n, 50), kind: 'repeats' };
+  }
+  const candidates = [];
+  for (const d of [100, 200, 300, 400, 500, 600, 800]) {
+    if (d > maxRep || vol % d !== 0) continue;
+    const n = vol / d;
+    if (n >= 2 && n <= 10) candidates.push({ parts: Array(n).fill(d), label: repeatsLabel(n, d), kind: 'repeats' });
+  }
+  for (const ladder of LADDERS) {
+    if (Math.max(...ladder) > maxRep) continue;
+    const lsum = ladder.reduce((a, b) => a + b, 0);
+    const ladderLabel = `лесенка ${ladder.join('+')}м`;
+    if (lsum === vol) {
+      candidates.push({ parts: ladder, label: ladderLabel, kind: 'ladder' });
+    } else if (lsum < vol) {
+      const rest = vol - lsum;
+      for (const d of [100, 200]) {
+        const n = rest / d;
+        if (rest % d === 0 && n >= 1 && n <= 6 && d <= maxRep) {
+          candidates.push({
+            parts: [...ladder, ...Array(n).fill(d)],
+            label: `${ladderLabel} + ${repeatsLabel(n, d)}`,
+            kind: 'mixed',
+          });
+        }
+      }
+    }
+  }
+  if (candidates.length) return pick(candidates);
+  const n = vol / 100;
+  return { parts: Array(n).fill(100), label: repeatsLabel(n, 100), kind: 'repeats' };
+}
+
+// Настоящая случайность (Math.random), не история из журнала — по прямому
+// запросу пользователя (2026-09-16): чередование "не повторять прошлую
+// тренировку" давало слишком мало вариативности (правило работает только
+// если тренер сохраняет каждую тренировку в журнал, и даже тогда меняло
+// от силы 1 пункт из 10 — пул кандидатов слишком маленький). Детерминизм
+// из HANDOVER.md был про "не нужен AI/LLM в рантайме", не про "один и тот
+// же результат при каждом клике" — сами ПРАВИЛА (кратность, порядок
+// блоков, лимит новых упражнений) остаются жёстко детерминированными,
+// случайно выбирается только ЧТО из уже разрешённого правилами набора
+// попадёт в конкретный план. Fisher–Yates.
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+
 /**
  * @param {object} params
  * @param {Array} params.catalog - exercise_library.json exercises
@@ -69,48 +179,50 @@ export function generatePlan({ catalog, log, targetMin, targetMax, settings, ove
     ex.equipment !== 'board_optional' &&
     !availableEquipment.includes(ex.equipment);
 
+  // Стили из «Параметров пловца»: упражнения только отмеченных стилей
+  // (основных и дополнительных) + упражнения без привязки к стилю.
+  const level = (settings && settings.swimmer_level) || 'beginner';
+  const mainStyles = (settings && settings.main_styles && settings.main_styles.length ? settings.main_styles : ['crawl']).filter((s) => STYLES.includes(s));
+  const extraStyles = ((settings && settings.extra_styles) || []).filter((s) => STYLES.includes(s) && !mainStyles.includes(s));
+  const allowedStyles = new Set([...mainStyles, ...extraStyles, 'mixed']);
+
   const eligible = catalog.filter((ex) => {
     if (forceExclude.includes(ex.code)) return false;
     if (equipmentMissing(ex)) return false;
+    if (!STRUCTURAL.has(ex.code) && !allowedStyles.has(styleOf(ex))) return false;
     if (ex.status === 'deferred' && !allowDeferred.includes(ex.code)) return false;
     return true;
   });
+  const eligibleByCode = Object.fromEntries(eligible.map((e) => [e.code, e]));
 
   const warmup = eligible.find((e) => e.code === 'ne_warmup');
   const cooldown = eligible.find((e) => e.code === 'ne_cooldown');
+
+  // Основной стиль: случайный из отмеченных, у которого в каталоге есть
+  // упражнение «стиль целиком» (кроль → кроль в полной координации и т.д.).
+  const mainStyleCandidates = mainStyles.filter((s) => eligibleByCode[FULL_STYLE_CODE[s]]);
+  const mainStyle = mainStyleCandidates.length ? shuffle(mainStyleCandidates)[0] : 'crawl';
+  const mainEx = eligibleByCode[FULL_STYLE_CODE[mainStyle]] || byCode['ne_main_crawl'];
+  const mainCode = mainEx ? mainEx.code : null;
 
   const equipmentPool = eligible
     .filter((e) => e.equipment && e.code !== 'ne_warmup' && e.code !== 'ne_cooldown')
     .sort(byStatusRank);
 
   const noEquipBasePool = eligible.filter(
-    (e) => !e.equipment && e.tier === 'base' && e.code !== 'ne_warmup' && e.code !== 'ne_cooldown' && e.code !== 'ne_main_crawl'
+    (e) => !e.equipment && e.tier === 'base' && !STRUCTURAL.has(e.code) && e.code !== mainCode
   );
 
+  // Технические упражнения: сначала основного стиля, потом дополнительных
+  // (внутри каждой группы — случайный порядок).
   const noEquipMediumPool = eligible.filter(
-    (e) => !e.equipment && (e.tier === 'medium' || e.tier === 'advanced') && e.code !== 'ne_main_crawl'
+    (e) => !e.equipment && (e.tier === 'medium' || e.tier === 'advanced') && !STRUCTURAL.has(e.code)
   );
-
-  // Настоящая случайность (Math.random), не история из журнала — по прямому
-  // запросу пользователя (2026-09-16): чередование "не повторять прошлую
-  // тренировку" давало слишком мало вариативности (правило работает только
-  // если тренер сохраняет каждую тренировку в журнал, и даже тогда меняло
-  // от силы 1 пункт из 10 — пул кандидатов слишком маленький). Детерминизм
-  // из HANDOVER.md был про "не нужен AI/LLM в рантайме", не про "один и тот
-  // же результат при каждом клике" — сами ПРАВИЛА (кратность, порядок
-  // блоков, лимит новых упражнений) остаются жёстко детерминированными,
-  // случайно выбирается только ЧТО из уже разрешённого правилами набора
-  // попадёт в конкретный план. Fisher–Yates.
-  function shuffle(arr) {
-    const a = [...arr];
-    for (let i = a.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
-  }
-
-  const orderedMedium = shuffle(noEquipMediumPool);
+  const isMainStyle = (ex) => mainStyles.includes(styleOf(ex)) || styleOf(ex) === 'mixed';
+  const orderedMedium = [
+    ...shuffle(noEquipMediumPool.filter(isMainStyle)),
+    ...shuffle(noEquipMediumPool.filter((e) => !isMainStyle(e))),
+  ];
 
   const items = [];
 
@@ -132,9 +244,7 @@ export function generatePlan({ catalog, log, targetMin, targetMax, settings, ove
 
   // Какое (если есть) новое/предложенное упражнение попадёт в этот план —
   // решается один раз, заранее, случайным выбором из ВСЕХ подходящих
-  // кандидатов (инвентарь + drills вместе), а не "чей блок обрабатывается
-  // первым в коде" (было так раньше — инвентарь всегда успевал занять слот
-  // до drills). Правило "не больше 1 продвинутого" по-прежнему соблюдается.
+  // кандидатов (инвентарь + drills вместе). Не больше 1 продвинутого.
   const proposedCandidates = [...equipmentPool, ...noEquipMediumPool].filter((ex) => ex.status === 'proposed');
   const chosenNewCodes = new Set();
   if (maxNewItems > 0 && proposedCandidates.length) {
@@ -154,19 +264,15 @@ export function generatePlan({ catalog, log, targetMin, targetMax, settings, ove
     return chosenNewCodes.has(ex.code);
   }
 
-  // Объём любого пункта плана (обычного или combo из двух половинок) —
-  // все дальнейшие суммы считаются через эту функцию.
+  // Объём любого пункта плана (обычного или combo из половинок).
   function itemVolume(item) {
     return item.combo ? item.combo.reduce((s, h) => s + h.volume_m, 0) : item.volume_m;
   }
 
-  // Пара "новое/непривычное упражнение (уменьшенный объём 50м) + известное
-  // упражнение-заполнитель (50м)" — один круг 100м у старта, сохраняет
-  // правило "первая попытка уменьшённым объёмом", не нарушая кратность 100
-  // на уровне каждого пункта. Заполнитель — "кроль в полной координации" (та же роль,
-  // что "50м обычный кроль" в примере пользователя).
+  // Новое упражнение — первая попытка уменьшенным объёмом (50 м), в паре с
+  // 50 м основного стиля: один круг 100 м у старта.
   function newItemCombo(ex) {
-    const fillerCode = byCode['ne_main_crawl'] ? 'ne_main_crawl' : cooldown ? cooldown.code : ex.code;
+    const fillerCode = mainCode || (cooldown ? cooldown.code : ex.code);
     return {
       combo: [
         { code: ex.code, volume_m: forceVolume[ex.code] || unitFor(ex) },
@@ -177,151 +283,166 @@ export function generatePlan({ catalog, log, targetMin, targetMax, settings, ove
     };
   }
 
-  // 1. Разминка — самый первый пункт плана, как и ожидает тренер (не
-  // "куда-то в середину списка"). 100м (2×50 одного упражнения), не 50м —
-  // правило "объём до инвентаря кратен 100" не требует, чтобы перед
-  // инвентарём не было ВООБЩЕ ничего, только чтобы объём до него был
-  // кратен 100 (100 кратно 100 — годится, пловец возвращается к старту).
-  if (warmup) {
-    items.push({ code: warmup.code, volume_m: forceVolume[warmup.code] || 100, block: 'warmup', is_new: false });
-  }
-
-  // Упражнение с always_include:false (CATALOG_SCHEMA.md) чередуется
-  // случайно, монетка ~50/50 при каждой генерации — не история из журнала
-  // (см. комментарий про shuffle() выше: пул слишком маленький, чтобы
-  // история давала заметную вариативность). К proposed не применяется —
-  // у них свой лимит новизны (chosenNewCodes выше).
+  // Упражнение с always_include:false чередуется случайно (~50/50).
   function rotationEligible(ex) {
     if (ex.status === 'proposed') return true;
     if (ex.always_include === false) return Math.random() < 0.5;
     return true;
   }
 
-  // 2. Блок с инвентарём — весь целиком, сразу после разминки (объём до
-  // него кратен 100, см. "Позиция у борта" в PLAN_RULES.md). Каждый пункт
-  // уже кратен 100 по правилу кратности объёма.
+  // ---------- Масштаб под объём (добавлено 2026-11-27) ----------
+  // Длинная тренировка — это не один бесконечный основной кроль: растут
+  // разминка/заминка, упражнения с инвентарём, число технических упражнений
+  // и стилевой сет; основная серия ограничена ~третью объёма и строится как
+  // серия (3×400) или лесенка (100+200+300+…), а не 40×50.
+  const aim = Math.max(200, Math.round((targetMin + targetMax) / 200) * 100);
+  const warmupVol = forceVolume.ne_warmup || (aim < 1200 ? 100 : aim < 2200 ? 200 : 300);
+  const cooldownVol = forceVolume.ne_cooldown || (aim < 1500 ? 100 : 200);
+  const equipVol = aim >= 2000 ? 200 : 100;
+  const baseDrillVol = aim >= 2000 ? 200 : 100;
+  const maxDrills = 6;
+  const mainCap = Math.max(200, Math.round((aim * 0.35) / 100) * 100);
+
+  // Разминка — первым пунктом (объём кратен 100 → пловец у старта перед инвентарём).
+  if (warmup) {
+    items.push({ code: warmup.code, volume_m: warmupVol, block: 'warmup', is_new: false });
+  }
+
+  // Блок с инвентарём — целиком, сразу после разминки.
   for (const ex of equipmentPool) {
     if (!canIncludeNew(ex)) continue;
     if (!rotationEligible(ex)) continue;
-    items.push({ code: ex.code, volume_m: volumeFor(ex), block: 'equipment', is_new: ex.status === 'proposed' });
+    const isNew = ex.status === 'proposed';
+    items.push({ code: ex.code, volume_m: forceVolume[ex.code] || (isNew ? volumeFor(ex) : equipVol), block: 'equipment', is_new: isNew });
   }
 
-  // 3. Стилевой сет (добавлено 2026-09-16 по примерам тренировок SwimRocket,
-  // присланным пользователем — там разнообразие строится через ОДИН сет,
-  // который сам крутит 2-3 стиля по кругу: "9×50: 1.кроль 2.спина 3.брасс",
-  // "10×25 брасс+кроль", а не через отдельные пункты плана на каждый стиль).
-  // Пул стилей: брасс целиком (всегда) + кроль (переиспользуем main_crawl —
-  // это нормально, в примерах SwimRocket кроль тоже встречается несколько
-  // раз за тренировку в разных пунктах) + спина, если она в этот раз прошла
-  // по чередованию (rotationEligible, монетка ~50/50, как раньше). Порядок
-  // внутри круга и число кругов (100 или 200м — 2 или 4 отрезка по 50м,
-  // чётное число, чтобы круг сам оставался кратен 100) — тоже случайные,
-  // это и есть основной источник разнообразия в этом блоке.
-  const breastFull = noEquipBasePool.find((e) => e.code === 'ne_breast_full');
-  const backPause = noEquipBasePool.find((e) => e.code === 'ne_back_pause');
+  // Стилевой сет: «стиль целиком» для всех отмеченных стилей по кругу, по 50 м.
   const stylePool = [];
-  if (breastFull) stylePool.push(breastFull);
-  if (byCode['ne_main_crawl']) stylePool.push(byCode['ne_main_crawl']);
-  if (backPause && rotationEligible(backPause)) stylePool.push(backPause);
-  for (const extra of noEquipBasePool.filter((e) => e.code !== 'ne_breast_full' && e.code !== 'ne_back_pause')) {
-    if (rotationEligible(extra)) stylePool.push(extra);
+  for (const s of [...mainStyles, ...extraStyles]) {
+    const ex = eligibleByCode[FULL_STYLE_CODE[s]];
+    if (!ex || stylePool.includes(ex)) continue;
+    if (ex.code !== mainCode && !rotationEligible(ex)) continue;
+    stylePool.push(ex);
+  }
+  for (const extra of noEquipBasePool.filter((e) => !Object.values(FULL_STYLE_CODE).includes(e.code))) {
+    if (styleOf(extra) === 'mixed' && rotationEligible(extra)) stylePool.push(extra);
+  }
+  let styleItem = null;
+  if (stylePool.length >= 2) {
+    const minSeg = aim < 1200 ? 2 : aim < 2200 ? 4 : 6;
+    const segCount = shuffle([minSeg, minSeg + 2])[0];
+    styleItem = { combo: [], block: 'no_equipment', is_new: false, style_set: true, pool: shuffle(stylePool) };
+    setStyleSegments(styleItem, segCount);
+    items.push(styleItem);
+  }
+  function setStyleSegments(item, count) {
+    item.combo = Array.from({ length: count }, (_, i) => ({ code: item.pool[i % item.pool.length].code, volume_m: 50 }));
   }
 
-  if (stylePool.length === 1) {
-    items.push({ code: stylePool[0].code, volume_m: forceVolume[stylePool[0].code] || 100, block: 'no_equipment', is_new: false });
-  } else if (stylePool.length >= 2) {
-    const shuffledStyles = shuffle(stylePool);
-    const segmentCount = shuffle([2, 4])[0];
-    const cycleEntries = [];
-    for (let i = 0; i < segmentCount; i += 1) {
-      const ex = shuffledStyles[i % shuffledStyles.length];
-      cycleEntries.push({ code: ex.code, volume_m: 50 });
-    }
-    items.push({ combo: cycleEntries, block: 'no_equipment', is_new: false });
+  // Технические упражнения: стартово 2, дальше добавляются, пока основная
+  // серия не уложится в mainCap.
+  const drillQueue = orderedMedium.filter((ex) => canIncludeNew(ex));
+  const drillItems = [];
+  function addDrill() {
+    const ex = drillQueue.shift();
+    if (!ex) return false;
+    const item =
+      ex.status === 'proposed'
+        ? newItemCombo(ex)
+        : { code: ex.code, volume_m: forceVolume[ex.code] || baseDrillVol, block: 'no_equipment', is_new: false };
+    drillItems.push(item);
+    items.push(item);
+    return true;
   }
+  addDrill();
+  addDrill();
 
-  // 4. Техническая ротация (medium/advanced drills) — по умолчанию 2 разных
-  // упражнения по 100м (не 3×50м — слишком много мелких пунктов, фидбэк
-  // пользователя 2026-09-16), случайно выбранных из orderedMedium (уже
-  // перемешан shuffle() выше). Новое/предложенное упражнение — исключение:
-  // объём остаётся уменьшенным, оформляется combo-парой (см. newItemCombo),
-  // чтобы не терять кратность 100; включается сюда, только если оно же
-  // оказалось выбрано в chosenNewCodes.
-  const drillTarget = 2;
-  const drillStandardVolume = 100;
-  let drillsChosen = 0;
-  for (const ex of orderedMedium) {
-    if (drillsChosen >= drillTarget) break;
-    if (!canIncludeNew(ex)) continue;
-    const isNewItem = ex.status === 'proposed';
-    if (isNewItem) {
-      items.push(newItemCombo(ex));
-    } else {
-      items.push({ code: ex.code, volume_m: forceVolume[ex.code] || drillStandardVolume, block: 'no_equipment', is_new: false });
-    }
-    drillsChosen += 1;
-  }
+  // Основная серия — пока заглушка, объём и структура считаются ниже.
+  const mainItem = mainCode
+    ? { code: mainCode, volume_m: 100, block: 'no_equipment', is_new: false, flexible: true, main_set: true }
+    : null;
+  if (mainItem) items.push(mainItem);
 
-  // 5. "Кроль в полной координации" — гибкий "доборный" пункт, всегда включён, всегда
-  // кратен 100 (шаг добора — 100м).
-  const mainCrawl = byCode['ne_main_crawl'];
-  const mainCrawlItem = { code: 'ne_main_crawl', volume_m: forceVolume['ne_main_crawl'] || 100, block: 'no_equipment', is_new: false, flexible: true };
-  if (mainCrawl) items.push(mainCrawlItem);
-
-  // 6. Заминка — фиксированный последний пункт. 100м, не 50м — по тому же
-  // правилу: последний пункт тоже должен начинаться (и как итог, весь план
-  // — заканчиваться) у старта.
   if (cooldown) {
-    items.push({ code: cooldown.code, volume_m: forceVolume[cooldown.code] || 100, block: 'cooldown', is_new: false });
+    items.push({ code: cooldown.code, volume_m: cooldownVol, block: 'cooldown', is_new: false });
   }
 
   const sum = () => items.reduce((s, i) => s + itemVolume(i), 0);
-  // Сумма всех пунктов, КРОМЕ гибкого основного блока кроля.
   const fixedSum = () => items.reduce((s, i) => (i.flexible ? s : s + itemVolume(i)), 0);
 
-  // Подрезка: если даже минимальный main_crawl (100м — все остальные пункты
-  // уже гарантированно кратны 100 по построению) не помещается в верхнюю
-  // границу — убираем сначала новое/предложенное упражнение (combo целиком),
-  // затем технические drills по одному, с конца.
-  const drillCodes = new Set(orderedMedium.map((e) => e.code));
-  const isDrillItem = (item) => (item.combo ? item.combo.some((h) => drillCodes.has(h.code)) : drillCodes.has(item.code));
+  // Рост: если на основную серию остаётся больше mainCap — добавляем
+  // упражнения, удлиняем их и стилевой сет, а не основную серию.
+  let growGuard = 0;
+  while (aim - fixedSum() > mainCap && growGuard < 40) {
+    growGuard += 1;
+    if (drillItems.length < maxDrills && drillQueue.length && addDrillBeforeMain()) continue;
+    const shortDrill = drillItems.find((d) => !d.combo && d.volume_m < 300);
+    if (shortDrill) {
+      shortDrill.volume_m += 100;
+      continue;
+    }
+    if (styleItem && styleItem.combo.length < 12) {
+      setStyleSegments(styleItem, styleItem.combo.length + 2);
+      continue;
+    }
+    const eqItem = items.find((i) => i.block === 'equipment' && !i.is_new && i.volume_m < 300);
+    if (eqItem) {
+      eqItem.volume_m += 100;
+      continue;
+    }
+    break;
+  }
+  function addDrillBeforeMain() {
+    const before = items.length;
+    if (!addDrill()) return false;
+    // addDrill кладёт в конец — переносим перед основной серией/заминкой.
+    const added = items.splice(before, 1)[0];
+    const idx = mainItem ? items.indexOf(mainItem) : items.findIndex((i) => i.block === 'cooldown');
+    items.splice(idx === -1 ? items.length : idx, 0, added);
+    return true;
+  }
+
+  // Подрезка: если даже 100 м основной серии не влезают в верхнюю границу —
+  // убираем новое упражнение, затем технические с конца, затем укорачиваем
+  // стилевой сет.
   let trimGuard = 0;
-  while (fixedSum() + 100 > targetMax && trimGuard < 10) {
+  while (fixedSum() + (mainItem ? 100 : 0) > targetMax && trimGuard < 20) {
     trimGuard += 1;
     const newIdx = items.findIndex((i) => i.is_new);
     if (newIdx !== -1) {
-      items.splice(newIdx, 1);
+      const removed = items.splice(newIdx, 1)[0];
+      const di = drillItems.indexOf(removed);
+      if (di !== -1) drillItems.splice(di, 1);
       continue;
     }
-    let lastDrillIdx = -1;
-    for (let i = items.length - 1; i >= 0; i -= 1) {
-      if (isDrillItem(items[i])) {
-        lastDrillIdx = i;
-        break;
-      }
-    }
-    if (lastDrillIdx !== -1) {
-      items.splice(lastDrillIdx, 1);
+    if (drillItems.length) {
+      items.splice(items.indexOf(drillItems.pop()), 1);
       continue;
     }
-    break; // нечего больше убрать без нарушения обязательных пунктов
+    if (styleItem && styleItem.combo.length > 2) {
+      setStyleSegments(styleItem, styleItem.combo.length - 2);
+      continue;
+    }
+    // Короткая тренировка: оставляем одно упражнение с инвентарём.
+    const eqItems = items.filter((i) => i.block === 'equipment');
+    if (eqItems.length > 1) {
+      items.splice(items.lastIndexOf(eqItems[eqItems.length - 1]), 1);
+      continue;
+    }
+    break;
   }
+  if (styleItem) delete styleItem.pool;
 
-  // Добор объёма до диапазона через main_crawl, шагом 100м, если пользователь
-  // не зафиксировал объём вручную. Все остальные пункты уже кратны 100, так
-  // что итог остаётся кратным 100 на любом шаге.
-  if (mainCrawl && !forceVolume['ne_main_crawl']) {
+  // Основная серия: добор до диапазона, шагом 100 м.
+  if (mainItem) {
     const fs = fixedSum();
-    let mainVol = 100;
-    let guard = 0;
-    while (fs + mainVol < targetMin && guard < 20) {
-      mainVol += 100;
-      guard += 1;
+    let mainVol = forceVolume[mainCode] || Math.max(100, aim - fs);
+    if (!forceVolume[mainCode]) {
+      while (fs + mainVol < targetMin) mainVol += 100;
+      while (fs + mainVol > targetMax && mainVol > 100) mainVol -= 100;
     }
-    if (fs + mainVol > targetMax && mainVol > 100) {
-      mainVol -= 100;
-    }
-    mainCrawlItem.volume_m = mainVol;
+    mainItem.volume_m = mainVol;
+    mainItem.set = buildMainSet(mainVol, maxRepeatFor(level, aim));
   }
 
   const totalVolume = sum();
@@ -329,7 +450,7 @@ export function generatePlan({ catalog, log, targetMin, targetMax, settings, ove
   const multipleOf100 = totalVolume % 100 === 0;
 
   const reserve = {
-    exercise_code: 'ne_main_crawl',
+    exercise_code: mainCode || 'ne_main_crawl',
     volume_m: forceVolume['reserve'] || 100,
     mandatory: !!settings.reserve_mandatory,
     label: settings.reserve_mandatory ? 'обязательный объём' : 'если успевает',
@@ -357,6 +478,7 @@ export function generatePlan({ catalog, log, targetMin, targetMax, settings, ove
   return {
     items,
     byCode,
+    mainStyle,
     totalVolume: reserve.mandatory ? totalVolume + reserve.volume_m : totalVolume,
     mandatoryVolume: totalVolume,
     targetMin,
@@ -374,6 +496,12 @@ export function generatePlan({ catalog, log, targetMin, targetMax, settings, ove
 export function expandToRestSegments(items) {
   const segments = [];
   for (const item of items) {
+    if (item.set) {
+      for (const part of item.set.parts) {
+        segments.push({ code: item.code, block: item.block, segment_m: part, exercise_total_m: item.volume_m });
+      }
+      continue;
+    }
     const halves = item.combo || [{ code: item.code, volume_m: item.volume_m }];
     for (const half of halves) {
       const segCount = Math.round(half.volume_m / 50);

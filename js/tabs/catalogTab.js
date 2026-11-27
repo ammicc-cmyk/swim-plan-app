@@ -1,5 +1,6 @@
 import { loadCatalog, saveCatalog, loadLog, loadSettings, exportExerciseLibraryMd } from '../storage.js';
 import { validateExercise, normalizeNewExercise, TIERS, STATUSES, KNOWN_EQUIPMENT, expectedVolumeFor } from '../schema.js';
+import { STYLES, STYLE_LABEL } from '../rulesEngine.js';
 
 function prerequisiteMet(ex, byCode) {
   if (!ex.requires) return true;
@@ -103,6 +104,9 @@ export function initCatalogTab(root) {
           <label>Уровень
             <select id="f-tier">${TIERS.map((t) => `<option value="${t}">${t}</option>`).join('')}</select>
           </label>
+          <label>Стиль
+            <select id="f-style">${STYLES.map((s) => `<option value="${s}">${STYLE_LABEL[s]}</option>`).join('')}<option value="mixed">Без привязки к стилю</option></select>
+          </label>
           <label>Фокус (обязательно) <input type="text" id="f-focus" required></label>
           <label>Заметки <input type="text" id="f-notes"></label>
           <label>Требует освоения (опционально)
@@ -166,6 +170,7 @@ export function initCatalogTab(root) {
         notes: root.querySelector('#f-notes').value,
         always_include: !root.querySelector('#f-rotate').checked,
         requires: root.querySelector('#f-requires').value,
+        style: root.querySelector('#f-style').value,
       };
       const candidate = normalizeNewExercise(input);
       const catalog = loadCatalog();

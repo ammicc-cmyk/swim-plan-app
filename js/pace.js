@@ -52,7 +52,7 @@ export function estimatePlanMinutes(items, byCode, paceKey, level = 'beginner') 
     const parts = item.combo || [{ code: item.code, volume_m: item.volume_m }];
     for (const part of parts) {
       swimSec += (part.volume_m / 100) * sec100 * speedFactor(byCode[part.code]);
-      restSec += restSecForItem(byCode[part.code], part.volume_m, level);
+      restSec += restSecForItem(byCode[part.code], part.volume_m, level, item.combo ? null : item.set);
     }
   }
   return Math.round((swimSec + restSec) / 60);

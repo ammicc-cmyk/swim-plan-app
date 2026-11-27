@@ -1,4 +1,7 @@
-import { loadLog, saveLog, loadCatalog, saveCatalog } from '../storage.js';
+import { loadLog, saveLog, loadCatalog, saveCatalog, loadSettings } from '../storage.js';
+
+// «Заметки пловца» / «Заметки пловчихи» — по полу из «Параметров пловца».
+const notesLabel = () => (loadSettings().swimmer_gender === 'f' ? 'Заметки пловчихи' : 'Заметки пловца');
 
 function esc(s) {
   const div = document.createElement('div');
@@ -117,7 +120,7 @@ export function initLogTab(root) {
             <th>Дата</th>
             <th>Упражнения (кратко)</th>
             <th>Дистанция</th>
-            <th>Заметки пловца</th>
+            <th>${notesLabel()}</th>
             <th></th>
           </tr>
         </thead>
@@ -183,7 +186,7 @@ export function initLogTab(root) {
         <label><input type="checkbox" id="e-reserve-done" ${entry.reserve?.done ? 'checked' : ''}> Резерв выполнен полностью</label>
         <h3>Упражнения</h3>
         <div class="log-edit-list">${rows}</div>
-        <label>Заметки пловца <textarea id="e-feedback" rows="3">${esc(entry.feedback_text || '')}</textarea></label>
+        <label>${notesLabel()} <textarea id="e-feedback" rows="3">${esc(entry.feedback_text || '')}</textarea></label>
         <div id="reserve-hint" class="hint"></div>
         <div class="toolbar">
           <button id="save-entry">Сохранить</button>

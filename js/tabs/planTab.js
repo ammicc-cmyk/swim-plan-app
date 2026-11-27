@@ -43,9 +43,15 @@ export function initPlanTab(root) {
       <form id="plan-form" class="inline-form">
         <label>Объём от <input type="number" id="target-min" step="50" value="${settings.default_target_min}" required></label>
         <label>до <input type="number" id="target-max" step="50" value="${settings.default_target_max}" required></label>
+        <label><input type="checkbox" id="fit-time" ${settings.pace_100_crawl ? 'checked' : 'disabled'}> Подобрать объём под ${settings.session_minutes} мин</label>
         <label><input type="checkbox" id="no-new-item"> Без нового упражнения в этот раз</label>
         <button type="submit">Сгенерировать план</button>
       </form>
+      <div class="hint">${
+        settings.pace_100_crawl
+          ? `С галочкой «Подобрать объём» диапазон метров не учитывается: объём подбирается так, чтобы тренировка заняла ${settings.session_minutes} мин при вашем темпе.`
+          : 'Чтобы подбирать объём под длительность тренировки, укажите темп кроля в «Настройки → Параметры пловца».'
+      }</div>
       <details class="exclude-panel">
         <summary>Не показывать какие-то упражнения в этот раз</summary>
         <div class="hint">
@@ -79,27 +85,46 @@ export function initPlanTab(root) {
     const log = loadLog();
     const currentSettings = loadSettings();
 
-    lastPlan = generatePlan({
-      catalog: currentCatalog,
-      log,
-      targetMin,
-      targetMax,
-      settings: currentSettings,
-      overrides: { noNewItem, forceExclude },
-    });
+    const level = currentSettings.swimmer_level;
+    const pace = currentSettings.pace_100_crawl;
+    const limit = currentSettings.session_minutes;
+    const gen = (min, max) =>
+      generatePlan({ catalog: currentCatalog, log, targetMin: min, targetMax: max, settings: currentSettings, overrides: { noNewItem, forceExclude } });
+    const minutesOf = (plan) => estimatePlanMinutes(plan.items, plan.byCode, pace, level);
 
-    output.innerHTML = renderPlan(lastPlan, lastPlan.byCode, currentSettings.swimmer_level);
+    const fitTime = root.querySelector('#fit-time').checked && pace && limit;
+    if (fitTime) {
+      // Подбор объёма под длительность: несколько итераций «сгенерировать →
+      // оценить время → пропорционально поправить объём», лучший план — в ответ.
+      let aim = Math.max(200, Math.round((targetMin + targetMax) / 200) * 100);
+      let best = null;
+      for (let i = 0; i < 8; i += 1) {
+        const plan = gen(aim - 100, aim);
+        const diff = Math.abs(minutesOf(plan) - limit);
+        if (!best || diff < best.diff) best = { plan, diff };
+        if (diff <= 2) break;
+        // Пропорциональная поправка, но не меньше чем на 100 м в нужную сторону
+        // (иначе подрезка/добор возвращают тот же объём и подбор застревает).
+        const m = minutesOf(plan);
+        const proposed = Math.round((plan.mandatoryVolume * limit) / m / 100) * 100;
+        aim = Math.max(200, m > limit ? Math.min(proposed, plan.mandatoryVolume - 100) : Math.max(proposed, plan.mandatoryVolume + 100));
+      }
+      lastPlan = best.plan;
+    } else {
+      lastPlan = gen(targetMin, targetMax);
+    }
+
+    output.innerHTML = renderPlan(lastPlan, lastPlan.byCode, currentSettings.swimmer_level, currentSettings.swimmer_gender);
     // Примерное время плана по темпу из «Параметров пловца» (упражнения и
     // другие стили медленнее кроля — коэффициенты в js/pace.js).
-    const minutes = estimatePlanMinutes(lastPlan.items, lastPlan.byCode, currentSettings.pace_100_crawl, currentSettings.swimmer_level);
+    const minutes = minutesOf(lastPlan);
     const summary = output.querySelector('.plan-summary');
     if (summary) {
-      const limit = currentSettings.session_minutes;
       summary.insertAdjacentHTML(
         'beforeend',
         minutes
           ? `<div class="plan-time">Примерное время: <strong>≈${minutes} мин</strong> с отдыхом${
-              limit && minutes > limit ? ` <span class="warn">— больше ${limit} мин, уменьшите объём</span>` : ''
+              fitTime ? ` — подобрано под ${limit} мин` : limit && minutes > limit ? ` <span class="warn">— больше ${limit} мин, уменьшите объём</span>` : ''
             }</div>`
           : '<div class="hint">Укажите темп кроля в «Настройки → Параметры пловца», чтобы видеть примерное время.</div>'
       );

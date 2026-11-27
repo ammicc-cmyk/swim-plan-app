@@ -41,8 +41,31 @@ const TEMPO = {
  * Подсказки по пункту плана.
  * @returns {{ tempo: string, rest: string }}
  */
-export function guidanceFor(ex, volume_m, level) {
-  const kind = exerciseKind(ex);
+// Отдых после отрезка основной серии длиной dist: 100 м — 20 с, 200 — 30 с, 400 — 50 с.
+export function restAfterPart(dist, ex, level) {
+  if (dist <= 50) return restSecPer50(ex, level) || 20;
+  return 10 + dist / 10 + (level === 'beginner' || !level ? 5 : 0);
+}
+
+const SET_TEMPO = {
+  repeats: 'Умеренно и ровно, 6 из 10. Все отрезки за одно время — первый не быстрее последнего.',
+  ladder: 'Умеренно, 6 из 10. На длинных ступенях держите ровный темп, на коротких можно чуть живее (7 из 10).',
+  mixed: 'Умеренно, 6 из 10. Лесенку — ровно, короткие отрезки в конце — чуть живее (7 из 10).',
+};
+
+function setRestText(set, ex, level) {
+  const dists = [...new Set(set.parts)].sort((a, b) => a - b);
+  if (dists.length === 1) {
+    return `${restAfterPart(dists[0], ex, level)} с у борта после каждого отрезка ${dists[0]} м.`;
+  }
+  return 'После каждого отрезка у борта: ' + dists.map((d) => `${d} м — ${restAfterPart(d, ex, level)} с`).join(', ') + '.';
+}
+
+export function guidanceFor(ex, volume_m, level, set) {
+  if (set && set.parts.some((d) => d > 50)) {
+    return { tempo: SET_TEMPO[set.kind] || SET_TEMPO.repeats, rest: setRestText(set, ex, level) };
+  }
+  const kind = set ? 'main' : exerciseKind(ex);
   const sec = restSecPer50(ex, level);
   const reps = Math.round(volume_m / 50);
 
@@ -65,8 +88,11 @@ export function guidanceFor(ex, volume_m, level) {
 }
 
 /** Секунды отдыха на пункт плана целиком (для оценки времени). */
-export function restSecForItem(ex, volume_m, level) {
-  const kind = exerciseKind(ex);
+export function restSecForItem(ex, volume_m, level, set) {
+  if (set && set.parts.some((d) => d > 50)) {
+    return set.parts.reduce((t, d) => t + restAfterPart(d, ex, level), 0);
+  }
+  const kind = set ? 'main' : exerciseKind(ex);
   const reps = Math.round(volume_m / 50);
   if (kind === 'cooldown' || reps <= 0) return 0;
   let total = reps * restSecPer50(ex, level);

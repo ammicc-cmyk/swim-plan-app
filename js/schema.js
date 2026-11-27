@@ -83,5 +83,6 @@ export function normalizeNewExercise(input) {
     // оставалось undefined для будущих статусов этой записи.
     always_include: input.always_include !== false,
     requires: input.requires && input.requires.trim() !== '' ? input.requires.trim() : null,
+    style: input.style || 'crawl',
   };
 }

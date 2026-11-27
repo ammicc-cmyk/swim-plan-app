@@ -24,7 +24,9 @@ function readSeed(id) {
 export function defaultSettings() {
   return {
     pool_length_m: 50,
-    style_focus: 'кроль (основной), брасс и спина — для разнообразия',
+    main_styles: ['crawl'],
+    extra_styles: ['breast', 'back'],
+    swimmer_gender: 'm',
     frequency_per_week: null,
     session_minutes: 45,
     reserve_mandatory: false,

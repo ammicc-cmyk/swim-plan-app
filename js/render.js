@@ -50,11 +50,28 @@ function esc(s) {
   return div.innerHTML;
 }
 
-export function renderPlan(plan, catalogByCode, level = 'beginner') {
+// «пловец» / «пловчиха» по полу из «Параметров пловца».
+export function swimmerWord(gender) {
+  return gender === 'f' ? 'пловчиха' : 'пловец';
+}
+
+// Объём пункта: «3×400м (1200м)», «лесенка 100+200+100м (400м)», «2×50м (100м)».
+function itemVolumeLabel(item, ex) {
+  if (item.set) return `${item.set.label} (${item.volume_m}м)`;
+  return formatVolume(item.volume_m, ex);
+}
+
+export function renderPlan(plan, catalogByCode, level = 'beginner', gender = 'm') {
+  const who = swimmerWord(gender);
   const { items, targetMin, targetMax, totalVolume, mandatoryVolume, withinRange, multipleOf100, reserve } = plan;
 
   const shortLines = items
     .map((item) => {
+      if (item.combo && item.combo.length > 2) {
+        const names = [...new Set(item.combo.map((h) => (catalogByCode[h.code] ? catalogByCode[h.code].name : h.code)))];
+        const vol = item.combo.reduce((s, h) => s + h.volume_m, 0);
+        return `<li>${item.combo.length}×50м (${vol}м) — чередование: ${names.map(esc).join(' / ')}</li>`;
+      }
       if (item.combo) {
         const parts = item.combo
           .map((h) => `${h.volume_m}м ${esc(catalogByCode[h.code] ? catalogByCode[h.code].name : h.code)}`)
@@ -66,34 +83,39 @@ export function renderPlan(plan, catalogByCode, level = 'beginner') {
       const badges =
         (item.is_new ? ' <span class="badge badge-new">новое</span>' : '') +
         (item.is_reserve ? ' <span class="badge badge-reserve">резерв</span>' : '');
-      return `<li>${formatVolume(item.volume_m, ex)} — ${esc(name)}${badges}</li>`;
+      return `<li>${itemVolumeLabel(item, ex)} — ${esc(name)}${badges}</li>`;
     })
     .join('');
 
   const detailRows = items
-    .map((item) => {
+    .map((item, idx) => {
+      const num = `<span class="plan-num">${idx + 1}</span>`;
       if (item.combo) {
-        const halvesHtml = item.combo
+        const shown = item.combo.length > 2
+          ? [...new Map(item.combo.map((h) => [h.code, h])).values()]
+          : item.combo;
+        const halvesHtml = shown
           .map((h) => {
             const hEx = catalogByCode[h.code];
             if (!hEx) return '';
             return `
             <div class="plan-detail-combo-half">
-              <strong>${h.volume_m}м — ${esc(hEx.name)}</strong>
+              <strong>${item.combo.length > 2 ? '' : `${h.volume_m}м — `}${esc(hEx.name)}</strong>
               <div>Инвентарь: ${equipLabel(hEx.equipment)}</div>
               <div>Фокус: ${esc(hEx.focus)}</div>
               <div class="plan-tempo"><b>Темп:</b> ${esc(guidanceFor(hEx, h.volume_m, level).tempo)}</div>
             </div>`;
           })
-          .join('<div class="plan-detail-combo-plus">+</div>');
+          .join(`<div class="plan-detail-combo-plus">${item.combo.length > 2 ? '/' : '+'}</div>`);
         const comboVolume = item.combo.reduce((s, h) => s + h.volume_m, 0);
         const comboTitle =
           item.combo.length > 2
-            ? `Сет ${comboVolume}м — чередование стилей (${item.combo.length}×50м)`
+            ? `Сет ${comboVolume}м — чередование стилей (${item.combo.length}×50м, по кругу, меняя стиль каждые 50 м)`
             : `Круг ${comboVolume}м из двух упражнений`;
         return `
         <div class="plan-detail-row block-${item.block} plan-detail-combo">
           <div class="plan-detail-head">
+            ${num}
             <span class="block-tag">${BLOCK_ICON[item.block] || ""}${BLOCK_LABEL[item.block] || item.block}</span>
             <strong>${esc(comboTitle)}</strong>
             ${item.is_new ? '<span class="badge badge-new">новое, уменьшенный объём</span>' : ''}
@@ -104,17 +126,18 @@ export function renderPlan(plan, catalogByCode, level = 'beginner') {
       }
       const ex = catalogByCode[item.code];
       if (!ex) return '';
-      const g = guidanceFor(ex, item.volume_m, level);
+      const g = guidanceFor(ex, item.volume_m, level, item.set);
       return `
         <div class="plan-detail-row block-${item.block}">
           <div class="plan-detail-head">
+            ${num}
             <span class="block-tag">${BLOCK_ICON[item.block] || ""}${BLOCK_LABEL[item.block] || item.block}</span>
             <strong>${esc(ex.name)}</strong>
             ${item.is_new ? '<span class="badge badge-new">новое, уменьшенный объём</span>' : ''}
             ${item.is_reserve ? '<span class="badge badge-reserve">резерв — обязательный объём</span>' : ''}
           </div>
           <div class="plan-detail-meta">
-            <span>Объём: ${formatVolume(item.volume_m, ex)}</span>
+            <span>Объём: ${itemVolumeLabel(item, ex)}</span>
             <span>Инвентарь: ${equipLabel(ex.equipment)}</span>
           </div>
           <div class="plan-detail-focus"><b>Фокус:</b> ${esc(ex.focus)}</div>
@@ -133,15 +156,15 @@ export function renderPlan(plan, catalogByCode, level = 'beginner') {
     <div class="plan-reserve">
       <strong>Резерв (${esc(reserve.label)})</strong> —
       ${catalogByCode[reserve.exercise_code] ? esc(catalogByCode[reserve.exercise_code].name) : reserve.exercise_code},
-      ${reserve.volume_m}м, тот же фокус/стиль, что кроль в полной координации — для сравнимости прогресса.
+      ${reserve.volume_m}м, тот же стиль и фокус, что в основной серии — для сравнимости прогресса.
       <div class="hint">Выполняется "если успевает", в общий объём не входит.</div>
     </div>`;
 
   let rangeNote;
   if (withinRange && multipleOf100) {
-    rangeNote = `<span class="ok">В диапазоне ${targetMin}–${targetMax} м, кратно 100 м — пловец заканчивает у старта</span>`;
+    rangeNote = `<span class="ok">В диапазоне ${targetMin}–${targetMax} м, кратно 100 м — ${who} заканчивает у старта</span>`;
   } else if (!multipleOf100) {
-    rangeNote = `<span class="warn">Объём ${mandatoryVolume} м не кратен 100 м — пловец не закончит тренировку у старта (PLAN_RULES.md, "Позиция у борта"). Попробуйте другой диапазон.</span>`;
+    rangeNote = `<span class="warn">Объём ${mandatoryVolume} м не кратен 100 м — ${who} не закончит тренировку у старта (PLAN_RULES.md, "Позиция у борта"). Попробуйте другой диапазон.</span>`;
   } else {
     rangeNote = `<span class="warn">Не удалось точно попасть в диапазон ${targetMin}–${targetMax} м доступными упражнениями — объём ${mandatoryVolume} м. Добавьте упражнение или измените диапазон.</span>`;
   }
@@ -157,7 +180,7 @@ export function renderPlan(plan, catalogByCode, level = 'beginner') {
     <div class="plan-details">${detailRows}</div>
     ${reserveBlock}
     <details class="rest-segments">
-      <summary>Показать по 50 м (маркеры отдыха)</summary>
+      <summary>Показать по отрезкам (маркеры отдыха)</summary>
       ${renderRestSegments(items, catalogByCode)}
     </details>
   `;
@@ -168,7 +191,7 @@ function renderRestSegments(items, catalogByCode) {
   const parts = segments.map((seg, idx) => {
     const ex = catalogByCode[seg.code];
     const name = ex ? ex.name : seg.code;
-    return `<span class="segment">${esc(name)} 50м</span>` + (idx < segments.length - 1 ? '<span class="rest-marker">↴ отдых</span>' : '');
+    return `<span class="segment">${esc(name)} ${seg.segment_m}м</span>` + (idx < segments.length - 1 ? '<span class="rest-marker">↴ отдых</span>' : '');
   });
   return `<div class="segments-flow">${parts.join('')}</div>`;
 }

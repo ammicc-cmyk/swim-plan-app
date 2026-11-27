@@ -1,5 +1,11 @@
 import { loadSettings, saveSettings } from '../storage.js';
+import { STYLES, STYLE_LABEL } from '../rulesEngine.js';
 import { PACES, recommendVolume, estimateVolumeMinutes, FACTOR_DRILL, FACTOR_OTHER_STYLE, REST_SEC_PER_50 } from '../pace.js';
+
+const GENDERS = [
+  ['m', 'Мужской'],
+  ['f', 'Женский'],
+];
 
 const LEVELS = [
   ['beginner', 'Начинающий'],
@@ -43,6 +49,8 @@ function estimateHtml(volume, paceKey, sessionMinutes) {
 export function initSettingsTab(root) {
   const settings = loadSettings();
   const equip = settings.available_equipment || [];
+  const mainStyles = settings.main_styles || ['crawl'];
+  const extraStyles = settings.extra_styles || [];
   const minuteOptions = SESSION_MINUTES.includes(settings.session_minutes)
     ? SESSION_MINUTES
     : [...SESSION_MINUTES, settings.session_minutes].sort((a, b) => a - b);
@@ -54,6 +62,9 @@ export function initSettingsTab(root) {
     <section class="panel">
       <h2>Параметры пловца</h2>
       <div class="profile-grid">
+        <label>Пол
+          <select id="p-gender">${options(GENDERS, settings.swimmer_gender)}</select>
+        </label>
         <label>Возраст, лет
           <input type="number" id="p-age" min="5" max="100" placeholder="не указан" value="${settings.swimmer_age ?? ''}">
         </label>
@@ -79,6 +90,20 @@ export function initSettingsTab(root) {
             .join('')}
         </fieldset>
         <fieldset class="choice-group">
+          <legend>Основной стиль — им плывётся основная серия</legend>
+          ${STYLES.map(
+            (s) =>
+              `<label class="chip"><input type="checkbox" class="p-main-style" value="${s}" ${mainStyles.includes(s) ? 'checked' : ''}> ${STYLE_LABEL[s]}</label>`
+          ).join('')}
+        </fieldset>
+        <fieldset class="choice-group">
+          <legend>Дополнительные стили — для разнообразия и упражнений</legend>
+          ${STYLES.map(
+            (s) =>
+              `<label class="chip"><input type="checkbox" class="p-extra-style" value="${s}" ${extraStyles.includes(s) ? 'checked' : ''}> ${STYLE_LABEL[s]}</label>`
+          ).join('')}
+        </fieldset>
+        <fieldset class="choice-group">
           <legend>Доступный инвентарь</legend>
           ${EQUIPMENT.map(
             ([value, label]) =>
@@ -97,7 +122,6 @@ export function initSettingsTab(root) {
     <section class="panel">
       <h2>Настройки генератора</h2>
       <div class="stack-form">
-        <label>Стиль-фокус <input type="text" id="s-style" value="${settings.style_focus}"></label>
         <label>Частота тренировок в неделю <input type="number" id="s-freq" value="${settings.frequency_per_week ?? ''}"></label>
         <label>Диапазон объёма по умолчанию: от <input type="number" id="s-min" step="50" value="${settings.default_target_min}"> до <input type="number" id="s-max" step="50" value="${settings.default_target_max}"></label>
         <label>Сколько тренировок ждать перед повторной попыткой deferred-упражнения <input type="number" id="s-cooldown" value="${settings.deferred_cooldown_sessions}"></label>
@@ -136,17 +160,23 @@ export function initSettingsTab(root) {
 
   $('#save-settings').addEventListener('click', () => {
     const ageRaw = $('#p-age').value;
+    const checked = (cls) => Array.from(root.querySelectorAll(`.${cls}:checked`)).map((cb) => cb.value);
+    let mainSel = checked('p-main-style');
+    if (!mainSel.length) mainSel = ['crawl'];
+    const extraSel = checked('p-extra-style').filter((s) => !mainSel.includes(s));
     const pool = root.querySelector('input[name="p-pool"]:checked');
     const updated = {
       ...settings,
       swimmer_age: ageRaw ? Number(ageRaw) : null,
       swimmer_level: $('#p-level').value,
+      swimmer_gender: $('#p-gender').value,
+      main_styles: mainSel,
+      extra_styles: extraSel,
       pace_100_crawl: $('#p-pace').value || null,
       target_volume_m: Number($('#p-volume').value),
       session_minutes: Number($('#p-minutes').value),
       pool_length_m: pool ? Number(pool.value) : settings.pool_length_m,
       available_equipment: Array.from(root.querySelectorAll('.p-equip:checked')).map((cb) => cb.value),
-      style_focus: $('#s-style').value,
       frequency_per_week: $('#s-freq').value ? Number($('#s-freq').value) : null,
       default_target_min: Number($('#s-min').value),
       default_target_max: Number($('#s-max').value),
