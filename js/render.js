@@ -8,6 +8,30 @@ const BLOCK_LABEL = {
   reserve: 'Резерв',
 };
 
+const svg = (p) =>
+  `<svg class="block-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+const BLOCK_ICON = {
+  // разминка — термометр/огонёк
+  warmup: svg('<path d="M12 3c2 3 5 5 5 9a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-5 1-8z"/>'),
+  // с инвентарём — доска для плавания
+  equipment: svg('<path d="M7 3h10a2 2 0 0 1 2 2v12a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4V5a2 2 0 0 1 2-2z"/><path d="M9 7h6"/>'),
+  // без инвентаря — волны
+  no_equipment: svg('<path d="M2 9c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/><path d="M2 15c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>'),
+  // заминка — луна/спокойствие
+  cooldown: svg('<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>'),
+  reserve: svg('<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>'),
+};
+
+const EQUIP_LABEL = {
+  board: 'доска',
+  pull_buoy: 'колобашка',
+  board_optional: 'доска (по желанию)',
+};
+function equipLabel(eq) {
+  if (!eq) return 'без инвентаря';
+  return esc(EQUIP_LABEL[eq] || eq);
+}
+
 function unitFor(ex) {
   return ex && ex.equipment ? 100 : 50;
 }
@@ -55,7 +79,7 @@ export function renderPlan(plan, catalogByCode) {
             return `
             <div class="plan-detail-combo-half">
               <strong>${h.volume_m}м — ${esc(hEx.name)}</strong>
-              <div>Инвентарь: ${hEx.equipment ? esc(hEx.equipment) : 'без инвентаря'}</div>
+              <div>Инвентарь: ${equipLabel(hEx.equipment)}</div>
               <div>Фокус: ${esc(hEx.focus)}</div>
             </div>`;
           })
@@ -68,7 +92,7 @@ export function renderPlan(plan, catalogByCode) {
         return `
         <div class="plan-detail-row block-${item.block} plan-detail-combo">
           <div class="plan-detail-head">
-            <span class="block-tag">${BLOCK_LABEL[item.block] || item.block}</span>
+            <span class="block-tag">${BLOCK_ICON[item.block] || ""}${BLOCK_LABEL[item.block] || item.block}</span>
             <strong>${esc(comboTitle)}</strong>
             ${item.is_new ? '<span class="badge badge-new">новое, уменьшенный объём</span>' : ''}
           </div>
@@ -80,14 +104,14 @@ export function renderPlan(plan, catalogByCode) {
       return `
         <div class="plan-detail-row block-${item.block}">
           <div class="plan-detail-head">
-            <span class="block-tag">${BLOCK_LABEL[item.block] || item.block}</span>
+            <span class="block-tag">${BLOCK_ICON[item.block] || ""}${BLOCK_LABEL[item.block] || item.block}</span>
             <strong>${esc(ex.name)}</strong>
             ${item.is_new ? '<span class="badge badge-new">новое, уменьшенный объём</span>' : ''}
             ${item.is_reserve ? '<span class="badge badge-reserve">резерв — обязательный объём</span>' : ''}
           </div>
           <div class="plan-detail-meta">
             <span>Объём: ${formatVolume(item.volume_m, ex)}</span>
-            <span>Инвентарь: ${ex.equipment ? esc(ex.equipment) : 'без инвентаря'}</span>
+            <span>Инвентарь: ${equipLabel(ex.equipment)}</span>
           </div>
           <div class="plan-detail-focus">Фокус: ${esc(ex.focus)}</div>
         </div>`;
@@ -121,9 +145,9 @@ export function renderPlan(plan, catalogByCode) {
       <div class="plan-total">Объём (обязательный): <strong>${mandatoryVolume} м</strong> ${rangeNote}</div>
       ${reserve.mandatory ? `<div class="plan-total-with-reserve">Итого с резервом: <strong>${totalVolume} м</strong></div>` : ''}
     </div>
-    <h3>Краткий план</h3>
+    <h3 class="plan-h">Краткий план</h3>
     <ol class="plan-short-list">${shortLines}</ol>
-    <h3>Подробности</h3>
+    <h3 class="plan-h">Подробности</h3>
     <div class="plan-details">${detailRows}</div>
     ${reserveBlock}
     <details class="rest-segments">

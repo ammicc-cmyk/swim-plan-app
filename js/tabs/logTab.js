@@ -1,4 +1,4 @@
-import { loadLog, saveLog, loadCatalog, saveCatalog, exportLog, importLogFile } from '../storage.js';
+import { loadLog, saveLog, loadCatalog, saveCatalog } from '../storage.js';
 
 function esc(s) {
   const div = document.createElement('div');
@@ -45,8 +45,6 @@ export function initLogTab(root) {
         <h2>Журнал тренировок</h2>
         <div class="toolbar">
           <button id="new-entry">Добавить запись вручную</button>
-          <button id="export-log">Экспорт training_log.json</button>
-          <label class="file-import">Импорт JSON <input type="file" id="import-log" accept="application/json"></label>
         </div>
         <div id="log-entries"></div>
       </section>
@@ -54,22 +52,6 @@ export function initLogTab(root) {
     `;
 
     renderEntriesList();
-
-    root.querySelector('#export-log').addEventListener('click', () => exportLog());
-    root.querySelector('#import-log').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      if (!confirm('Импорт полностью заменит текущий журнал в этом браузере. Продолжить?')) {
-        e.target.value = '';
-        return;
-      }
-      importLogFile(file)
-        .then(() => {
-          root.querySelector('#entry-editor').style.display = 'none';
-          renderEntriesList();
-        })
-        .catch((err) => alert('Ошибка импорта: ' + err.message));
-    });
 
     root.querySelector('#new-entry').addEventListener('click', () => {
       const log = loadLog();

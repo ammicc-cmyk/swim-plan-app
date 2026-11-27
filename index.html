@@ -7,11 +7,52 @@
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-<header>
-  <h1>Генератор планов плавательных тренировок</h1>
+<header class="hero">
+  <div class="hero-inner">
+    <div class="hero-text">
+      <div class="hero-eyebrow">Бассейн · 45 минут · ~800 м</div>
+      <h1>Генератор планов плавательных тренировок</h1>
+      <p>План на тренировку, каталог упражнений и журнал прогресса</p>
+    </div>
+    <svg class="hero-art" viewBox="0 0 260 130" aria-hidden="true">
+      <!-- солнце-блик -->
+      <circle cx="214" cy="30" r="16" fill="#fde68a" opacity=".9"/>
+      <!-- пузырьки -->
+      <circle cx="40" cy="38" r="4" fill="none" stroke="#fff" stroke-width="2" opacity=".7"/>
+      <circle cx="54" cy="24" r="2.5" fill="none" stroke="#fff" stroke-width="2" opacity=".6"/>
+      <circle cx="30" cy="16" r="1.8" fill="#fff" opacity=".6"/>
+      <!-- пловец (кроль) -->
+      <g transform="translate(78 44)">
+        <!-- рука над водой -->
+        <path d="M58 30 C 70 6, 96 2, 112 14" fill="none" stroke="#ffd7b5" stroke-width="7" stroke-linecap="round"/>
+        <!-- тело -->
+        <path d="M10 40 C 34 30, 70 30, 100 38" fill="none" stroke="#f472b6" stroke-width="13" stroke-linecap="round"/>
+        <!-- голова в шапочке -->
+        <circle cx="110" cy="38" r="10" fill="#ffd7b5"/>
+        <path d="M100 36 a10 10 0 0 1 20 0 z" fill="#facc15"/>
+        <!-- очки -->
+        <circle cx="116" cy="39" r="2.6" fill="#0f172a"/>
+        <!-- ноги и брызги -->
+        <path d="M10 40 L -8 34 M10 42 L -6 48" stroke="#ffd7b5" stroke-width="6" stroke-linecap="round"/>
+        <circle cx="-16" cy="30" r="2.4" fill="#fff"/>
+        <circle cx="-20" cy="40" r="1.8" fill="#fff"/>
+        <circle cx="-14" cy="50" r="2.2" fill="#fff"/>
+      </g>
+      <!-- волны -->
+      <path d="M0 92 Q 16 82 32 92 T 64 92 T 96 92 T 128 92 T 160 92 T 192 92 T 224 92 T 260 92 V130 H0 Z" fill="#7dd3fc" opacity=".85"/>
+      <path d="M0 104 Q 20 94 40 104 T 80 104 T 120 104 T 160 104 T 200 104 T 240 104 T 280 104 V130 H0 Z" fill="#38bdf8" opacity=".9"/>
+    </svg>
+  </div>
+  <svg class="hero-wave" viewBox="0 0 1440 60" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0 30 C 240 60, 480 0, 720 30 S 1200 60, 1440 30 V60 H0 Z"/>
+  </svg>
 </header>
 <nav id="tab-buttons"></nav>
 <main id="tab-root"></main>
+<footer class="site-footer">
+  <div class="lane-rope" aria-hidden="true"></div>
+  <p>Хорошей тренировки! Дышите ровно и тянитесь вперёд.</p>
+</footer>
 
 <!-- Seed-данные: используются только при первом запуске (пустой localStorage).
      Это копии exercise_library.json / training_log.json, встроенные inline, чтобы

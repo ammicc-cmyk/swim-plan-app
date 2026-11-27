@@ -31,6 +31,13 @@ export function defaultSettings() {
     deferred_cooldown_sessions: 2,
     default_target_min: 700,
     default_target_max: 900,
+    // Параметры пловца (вкладка «Настройки» → «Параметры пловца»).
+    // Хранятся только в localStorage браузера, в репозиторий не попадают.
+    swimmer_age: null,
+    swimmer_level: 'beginner',
+    pace_100_crawl: null,
+    target_volume_m: 800,
+    available_equipment: ['board', 'pull_buoy'],
   };
 }
 
@@ -107,7 +114,8 @@ export function saveLog(entries) {
 
 export function loadSettings() {
   const raw = localStorage.getItem(KEYS.settings);
-  if (raw) return JSON.parse(raw);
+  // Доливаем новые поля по умолчанию в настройки, сохранённые старой версией.
+  if (raw) return { ...defaultSettings(), ...JSON.parse(raw) };
   const settings = defaultSettings();
   saveSettings(settings);
   return settings;

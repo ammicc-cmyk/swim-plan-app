@@ -1,4 +1,4 @@
-import { loadCatalog, saveCatalog, loadLog, loadSettings, exportCatalog, exportExerciseLibraryMd, importCatalogFile } from '../storage.js';
+import { loadCatalog, saveCatalog, loadLog, loadSettings, exportExerciseLibraryMd } from '../storage.js';
 import { validateExercise, normalizeNewExercise, TIERS, STATUSES, KNOWN_EQUIPMENT, expectedVolumeFor } from '../schema.js';
 
 function prerequisiteMet(ex, byCode) {
@@ -79,9 +79,7 @@ export function initCatalogTab(root) {
       <section class="panel">
         <h2>Каталог упражнений</h2>
         <div class="toolbar">
-          <button id="export-catalog">Экспорт exercise_library.json</button>
-          <button id="export-catalog-md">Экспорт EXERCISE_LIBRARY.md</button>
-          <label class="file-import">Импорт JSON <input type="file" id="import-catalog" accept="application/json"></label>
+          <button id="export-catalog-md">Скачать каталог (текст)</button>
         </div>
         <table class="catalog-table">
           <thead>
@@ -154,20 +152,7 @@ export function initCatalogTab(root) {
       });
     });
 
-    root.querySelector('#export-catalog').addEventListener('click', () => exportCatalog());
     root.querySelector('#export-catalog-md').addEventListener('click', () => exportExerciseLibraryMd());
-
-    root.querySelector('#import-catalog').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      if (!confirm('Импорт полностью заменит текущий каталог в этом браузере. Продолжить?')) {
-        e.target.value = '';
-        return;
-      }
-      importCatalogFile(file)
-        .then(() => render())
-        .catch((err) => alert('Ошибка импорта: ' + err.message));
-    });
 
     root.querySelector('#add-exercise-form').addEventListener('submit', (e) => {
       e.preventDefault();

@@ -58,8 +58,20 @@ export function generatePlan({ catalog, log, targetMin, targetMax, settings, ove
   // без привязки к точным датам последней попытки (last_attempt_date часто ещё не
   // проставлена). Возврат из deferred — осознанное действие тренера в каталоге,
   // либо ручной allowDeferred-оверрайд здесь.
+  // Инвентарь из «Параметров пловца»: упражнение с доской/колобашкой не
+  // предлагается, если этого инвентаря нет. board_optional можно делать и без доски.
+  const availableEquipment = Array.isArray(settings && settings.available_equipment)
+    ? settings.available_equipment
+    : null;
+  const equipmentMissing = (ex) =>
+    availableEquipment !== null &&
+    ex.equipment &&
+    ex.equipment !== 'board_optional' &&
+    !availableEquipment.includes(ex.equipment);
+
   const eligible = catalog.filter((ex) => {
     if (forceExclude.includes(ex.code)) return false;
+    if (equipmentMissing(ex)) return false;
     if (ex.status === 'deferred' && !allowDeferred.includes(ex.code)) return false;
     return true;
   });

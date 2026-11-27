@@ -1,4 +1,5 @@
 import { generatePlan } from '../rulesEngine.js';
+import { estimatePlanMinutes } from '../pace.js';
 import { renderPlan } from '../render.js';
 import { loadCatalog, loadLog, saveLog, saveCatalog, loadSettings } from '../storage.js';
 
@@ -88,6 +89,21 @@ export function initPlanTab(root) {
     });
 
     output.innerHTML = renderPlan(lastPlan, lastPlan.byCode);
+    // Примерное время плана по темпу из «Параметров пловца» (упражнения и
+    // другие стили медленнее кроля — коэффициенты в js/pace.js).
+    const minutes = estimatePlanMinutes(lastPlan.items, lastPlan.byCode, currentSettings.pace_100_crawl);
+    const summary = output.querySelector('.plan-summary');
+    if (summary) {
+      const limit = currentSettings.session_minutes;
+      summary.insertAdjacentHTML(
+        'beforeend',
+        minutes
+          ? `<div class="plan-time">Примерное время: <strong>≈${minutes} мин</strong> с отдыхом${
+              limit && minutes > limit ? ` <span class="warn">— больше ${limit} мин, уменьшите объём</span>` : ''
+            }</div>`
+          : '<div class="hint">Укажите темп кроля в «Настройки → Параметры пловца», чтобы видеть примерное время.</div>'
+      );
+    }
     saveRow.style.display = 'block';
   });
 
