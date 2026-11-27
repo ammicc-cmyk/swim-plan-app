@@ -1,4 +1,5 @@
 import { expandToRestSegments } from './rulesEngine.js';
+import { guidanceFor, restSecPer50 } from './guidance.js';
 
 const BLOCK_LABEL = {
   warmup: 'Разминка',
@@ -49,7 +50,7 @@ function esc(s) {
   return div.innerHTML;
 }
 
-export function renderPlan(plan, catalogByCode) {
+export function renderPlan(plan, catalogByCode, level = 'beginner') {
   const { items, targetMin, targetMax, totalVolume, mandatoryVolume, withinRange, multipleOf100, reserve } = plan;
 
   const shortLines = items
@@ -81,6 +82,7 @@ export function renderPlan(plan, catalogByCode) {
               <strong>${h.volume_m}м — ${esc(hEx.name)}</strong>
               <div>Инвентарь: ${equipLabel(hEx.equipment)}</div>
               <div>Фокус: ${esc(hEx.focus)}</div>
+              <div class="plan-tempo"><b>Темп:</b> ${esc(guidanceFor(hEx, h.volume_m, level).tempo)}</div>
             </div>`;
           })
           .join('<div class="plan-detail-combo-plus">+</div>');
@@ -97,10 +99,12 @@ export function renderPlan(plan, catalogByCode) {
             ${item.is_new ? '<span class="badge badge-new">новое, уменьшенный объём</span>' : ''}
           </div>
           <div class="plan-detail-combo-halves">${halvesHtml}</div>
+          <div class="plan-rest"><b>Отдых:</b> ${Math.max(...item.combo.map((h) => restSecPer50(catalogByCode[h.code], level)))} с у борта после каждых 50 м.</div>
         </div>`;
       }
       const ex = catalogByCode[item.code];
       if (!ex) return '';
+      const g = guidanceFor(ex, item.volume_m, level);
       return `
         <div class="plan-detail-row block-${item.block}">
           <div class="plan-detail-head">
@@ -113,7 +117,9 @@ export function renderPlan(plan, catalogByCode) {
             <span>Объём: ${formatVolume(item.volume_m, ex)}</span>
             <span>Инвентарь: ${equipLabel(ex.equipment)}</span>
           </div>
-          <div class="plan-detail-focus">Фокус: ${esc(ex.focus)}</div>
+          <div class="plan-detail-focus"><b>Фокус:</b> ${esc(ex.focus)}</div>
+          <div class="plan-tempo"><b>Темп:</b> ${esc(g.tempo)}</div>
+          <div class="plan-rest"><b>Отдых:</b> ${esc(g.rest)}</div>
         </div>`;
     })
     .join('');

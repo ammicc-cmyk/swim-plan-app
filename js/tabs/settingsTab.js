@@ -7,7 +7,8 @@ const LEVELS = [
   ['advanced', 'Продвинутый'],
 ];
 
-const VOLUMES = Array.from({ length: 28 }, (_, i) => 300 + i * 100); // 300–3000 м
+const SESSION_MINUTES = [30, 45, 60, 75, 90];
+const VOLUMES = Array.from({ length: 48 }, (_, i) => 300 + i * 100); // 300–5000 м
 
 const EQUIPMENT = [
   ['board', 'Доска'],
@@ -36,13 +37,16 @@ function estimateHtml(volume, paceKey, sessionMinutes) {
     <button type="button" id="p-apply-rec" class="btn-small">Подставить</button><br>
     Выбранные ${volume} м займут ≈${minutes} мин${fit}.
     <span class="hint">Учтено: упражнения плывутся в ${FACTOR_DRILL}× медленнее кроля (1.5–1.8),
-    другие стили — в ${FACTOR_OTHER_STYLE}×, отдых ${REST_SEC_PER_50} с после каждых 50 м.</span>`;
+    другие стили — в ${FACTOR_OTHER_STYLE}×, отдых в среднем ${REST_SEC_PER_50} с после каждых 50 м.</span>`;
 }
 
 export function initSettingsTab(root) {
   const settings = loadSettings();
   const equip = settings.available_equipment || [];
-  const volumeOptions = VOLUMES.includes(settings.target_volume_m)
+  const minuteOptions = SESSION_MINUTES.includes(settings.session_minutes)
+    ? SESSION_MINUTES
+    : [...SESSION_MINUTES, settings.session_minutes].sort((a, b) => a - b);
+  const volumeOptions =VOLUMES.includes(settings.target_volume_m)
     ? VOLUMES
     : [...VOLUMES, settings.target_volume_m].sort((a, b) => a - b);
 
@@ -58,6 +62,9 @@ export function initSettingsTab(root) {
         </label>
         <label>Темп кроль на 100 м
           <select id="p-pace"><option value="">— не выбран —</option>${options(PACES, settings.pace_100_crawl)}</select>
+        </label>
+        <label>Длительность тренировки
+          <select id="p-minutes">${options(minuteOptions.map((m) => [m, `${m} мин`]), settings.session_minutes)}</select>
         </label>
         <label>Объём тренировки, м
           <select id="p-volume">${options(volumeOptions.map((v) => [v, `${v} м`]), settings.target_volume_m)}</select>
@@ -90,7 +97,6 @@ export function initSettingsTab(root) {
     <section class="panel">
       <h2>Настройки генератора</h2>
       <div class="stack-form">
-        <label>Длительность тренировки (мин, фиксировано) <input type="number" value="${settings.session_minutes}" disabled></label>
         <label>Стиль-фокус <input type="text" id="s-style" value="${settings.style_focus}"></label>
         <label>Частота тренировок в неделю <input type="number" id="s-freq" value="${settings.frequency_per_week ?? ''}"></label>
         <label>Диапазон объёма по умолчанию: от <input type="number" id="s-min" step="50" value="${settings.default_target_min}"> до <input type="number" id="s-max" step="50" value="${settings.default_target_max}"></label>
@@ -109,13 +115,14 @@ export function initSettingsTab(root) {
   const $ = (sel) => root.querySelector(sel);
 
   const refreshEstimate = () => {
-    $('#p-estimate').innerHTML = estimateHtml(Number($('#p-volume').value), $('#p-pace').value, settings.session_minutes);
+    $('#p-estimate').innerHTML = estimateHtml(Number($('#p-volume').value), $('#p-pace').value, Number($('#p-minutes').value));
   };
   $('#p-pace').addEventListener('change', refreshEstimate);
+  $('#p-minutes').addEventListener('change', refreshEstimate);
   // «Подставить» — выставить рекомендуемую дистанцию в поле объёма.
   $('#p-estimate').addEventListener('click', (e) => {
     if (e.target.id !== 'p-apply-rec') return;
-    const rec = recommendVolume(settings.session_minutes, $('#p-pace').value);
+    const rec = recommendVolume(Number($('#p-minutes').value), $('#p-pace').value);
     if (!rec) return;
     $('#p-volume').value = String(rec);
     $('#p-volume').dispatchEvent(new Event('change'));
@@ -136,6 +143,7 @@ export function initSettingsTab(root) {
       swimmer_level: $('#p-level').value,
       pace_100_crawl: $('#p-pace').value || null,
       target_volume_m: Number($('#p-volume').value),
+      session_minutes: Number($('#p-minutes').value),
       pool_length_m: pool ? Number(pool.value) : settings.pool_length_m,
       available_equipment: Array.from(root.querySelectorAll('.p-equip:checked')).map((cb) => cb.value),
       style_focus: $('#s-style').value,

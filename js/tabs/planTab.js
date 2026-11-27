@@ -88,10 +88,10 @@ export function initPlanTab(root) {
       overrides: { noNewItem, forceExclude },
     });
 
-    output.innerHTML = renderPlan(lastPlan, lastPlan.byCode);
+    output.innerHTML = renderPlan(lastPlan, lastPlan.byCode, currentSettings.swimmer_level);
     // Примерное время плана по темпу из «Параметров пловца» (упражнения и
     // другие стили медленнее кроля — коэффициенты в js/pace.js).
-    const minutes = estimatePlanMinutes(lastPlan.items, lastPlan.byCode, currentSettings.pace_100_crawl);
+    const minutes = estimatePlanMinutes(lastPlan.items, lastPlan.byCode, currentSettings.pace_100_crawl, currentSettings.swimmer_level);
     const summary = output.querySelector('.plan-summary');
     if (summary) {
       const limit = currentSettings.session_minutes;

@@ -53,8 +53,24 @@ const NAME_MIGRATIONS = {
   ne_main_crawl: 'Кроль в полной координации',
 };
 
+// Переформулированные фокусы: заменяем, только если в браузере остался
+// старый текст (если тренер правил фокус сам — не трогаем).
+const FOCUS_MIGRATIONS = {
+  ne_main_crawl: {
+    from: 'Свести все drill-элементы вместе — ритм дыхания каждые 3 гребка, высокий локоть',
+    to: 'Обычный кроль, в котором собрано всё отработанное в упражнениях: длинный гребок с высоким локтем, вдох каждые 3 гребка, спокойная работа ног. Это «контрольный» кроль — по нему видно прогресс',
+  },
+};
+
 function applyNameMigrations(exercises) {
   let changed = false;
+  for (const ex of exercises) {
+    const fm = FOCUS_MIGRATIONS[ex.code];
+    if (fm && ex.focus === fm.from) {
+      ex.focus = fm.to;
+      changed = true;
+    }
+  }
   for (const ex of exercises) {
     const canonicalName = NAME_MIGRATIONS[ex.code];
     if (canonicalName && ex.name !== canonicalName) {

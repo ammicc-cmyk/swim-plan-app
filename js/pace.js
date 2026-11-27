@@ -5,7 +5,10 @@
 //  - упражнения (drills, работа с инвентарём, прогрессии) — в 1.5–1.8 раза,
 //    берём середину 1.65;
 //  - другие стили целиком (брасс, спина) — в 1.3 раза.
-// Отдых — после каждых 50 м (PLAN_RULES.md), закладываем 15 с на остановку.
+// Отдых — после каждых 50 м (PLAN_RULES.md). В оценке плана — паузы из
+// js/guidance.js по виду упражнения и уровню; в рекомендации дистанции — 20 с в среднем.
+
+import { restSecForItem } from './guidance.js';
 
 // Темп кроль на 100 м: ключ → подпись → середина диапазона в секундах.
 export const PACES = [
@@ -19,7 +22,7 @@ export const PACES = [
 
 export const FACTOR_DRILL = 1.65;
 export const FACTOR_OTHER_STYLE = 1.3;
-export const REST_SEC_PER_50 = 15;
+export const REST_SEC_PER_50 = 20;
 
 // Обычный кроль: разминка, основной кроль, заминка.
 const CRAWL_CODES = new Set(['ne_warmup', 'ne_main_crawl', 'ne_cooldown']);
@@ -40,19 +43,18 @@ export function speedFactor(ex) {
 }
 
 /** Минуты на план: плавание с учётом коэффициентов + отдых после каждых 50 м. */
-export function estimatePlanMinutes(items, byCode, paceKey) {
+export function estimatePlanMinutes(items, byCode, paceKey, level = 'beginner') {
   const sec100 = paceSeconds(paceKey);
   if (!sec100) return null;
   let swimSec = 0;
-  let volume = 0;
+  let restSec = 0;
   for (const item of items) {
     const parts = item.combo || [{ code: item.code, volume_m: item.volume_m }];
     for (const part of parts) {
       swimSec += (part.volume_m / 100) * sec100 * speedFactor(byCode[part.code]);
-      volume += part.volume_m;
+      restSec += restSecForItem(byCode[part.code], part.volume_m, level);
     }
   }
-  const restSec = Math.max(0, volume / 50 - 1) * REST_SEC_PER_50;
   return Math.round((swimSec + restSec) / 60);
 }
 

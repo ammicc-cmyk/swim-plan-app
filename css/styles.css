@@ -390,3 +390,6 @@ table.log-table th { background: var(--accent-soft); }
 .estimate-box .hint { display: block; margin-top: 4px; }
 .btn-small { padding: 3px 10px; font-size: .82rem; margin-left: 6px; }
 .plan-time { margin-top: 4px; }
+.plan-tempo, .plan-rest { font-size: .88rem; margin-top: 3px; }
+.plan-rest { color: var(--muted); }
+.plan-detail-focus b, .plan-tempo b, .plan-rest b { color: var(--text); font-weight: 600; }
